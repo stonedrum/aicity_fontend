@@ -104,6 +104,110 @@
               </div>
             </div>
           </el-tab-pane>
+
+          <el-tab-pane label="查询日志" name="logs">
+            <div class="logs-container">
+              <div class="logs-header">
+                <h3>Chat 查询日志</h3>
+                <el-input
+                  v-model="logFilterUsername"
+                  placeholder="按用户名筛选（可选）"
+                  style="width: 200px; margin-right: 10px;"
+                  clearable
+                  @clear="loadChatLogs"
+                  @keyup.enter="loadChatLogs"
+                >
+                  <template #prefix>
+                    <el-icon><Search /></el-icon>
+                  </template>
+                </el-input>
+                <el-button type="primary" @click="loadChatLogs">查询</el-button>
+              </div>
+
+              <el-table :data="chatLogs" style="width: 100%" v-loading="logsLoading" stripe>
+                <el-table-column prop="query_time" label="查询时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatDateTime(row.query_time) }}
+                  </template>
+                </el-table-column>
+                <el-table-column prop="username" label="用户名" width="120" />
+                <el-table-column prop="query_content" label="查询内容" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="model_name" label="模型" width="120" />
+                <el-table-column prop="query_duration_seconds" label="耗时(秒)" width="100">
+                  <template #default="{ row }">
+                    {{ row.query_duration_seconds ? row.query_duration_seconds.toFixed(2) : '-' }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="120" fixed="right">
+                  <template #default="{ row }">
+                    <el-button type="primary" size="small" @click="viewLogDetail(row)">查看详情</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+
+              <div class="pagination-container">
+                <el-pagination
+                  v-model:current-page="logPage"
+                  v-model:page-size="logPageSize"
+                  :page-sizes="[10, 15, 20, 50]"
+                  :total="logTotal"
+                  layout="total, sizes, prev, pager, next, jumper"
+                  @size-change="handleLogPageSizeChange"
+                  @current-change="handleLogPageChange"
+                />
+              </div>
+            </div>
+
+            <!-- 日志详情对话框 -->
+            <el-dialog v-model="logDetailVisible" title="查询日志详情" width="80%" :close-on-click-modal="false">
+              <div v-if="selectedLog" class="log-detail">
+                <el-descriptions :column="2" border>
+                  <el-descriptions-item label="查询时间">{{ formatDateTime(selectedLog.query_time) }}</el-descriptions-item>
+                  <el-descriptions-item label="用户名">{{ selectedLog.username }}</el-descriptions-item>
+                  <el-descriptions-item label="模型名称">{{ selectedLog.model_name || '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="查询耗时">{{ selectedLog.query_duration_seconds ? selectedLog.query_duration_seconds.toFixed(2) + ' 秒' : '-' }}</el-descriptions-item>
+                  <el-descriptions-item label="查询内容" :span="2">
+                    <div class="log-content">{{ selectedLog.query_content }}</div>
+                  </el-descriptions-item>
+                </el-descriptions>
+
+                <el-divider>初始 RAG 结果（Top 10）</el-divider>
+                <div v-if="selectedLog.initial_rag_results && selectedLog.initial_rag_results.length > 0" class="rag-results">
+                  <el-table :data="selectedLog.initial_rag_results" size="small" max-height="300">
+                    <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
+                    <el-table-column prop="chapter_path" label="章节路径" width="200" show-overflow-tooltip />
+                    <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
+                    <el-table-column prop="score" label="相似度" width="100">
+                      <template #default="{ row }">
+                        {{ row.score ? row.score.toFixed(3) : '-' }}
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+                <div v-else class="no-data">无数据</div>
+
+                <el-divider>重排结果（Top 3）</el-divider>
+                <div v-if="selectedLog.reranked_results && selectedLog.reranked_results.length > 0" class="rag-results">
+                  <el-table :data="selectedLog.reranked_results" size="small" max-height="300">
+                    <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
+                    <el-table-column prop="chapter_path" label="章节路径" width="200" show-overflow-tooltip />
+                    <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
+                    <el-table-column prop="rerank_score" label="重排分数" width="100">
+                      <template #default="{ row }">
+                        {{ row.rerank_score ? row.rerank_score.toFixed(3) : '-' }}
+                      </template>
+                    </el-table-column>
+                  </el-table>
+                </div>
+                <div v-else class="no-data">无数据</div>
+
+                <el-divider>LLM 响应</el-divider>
+                <div class="llm-response">
+                  <div class="markdown-body" v-html="renderMarkdown(selectedLog.llm_response || '无响应')"></div>
+                </div>
+              </div>
+            </el-dialog>
+          </el-tab-pane>
         </el-tabs>
       </div>
     </el-main>
@@ -111,13 +215,37 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import axios from 'axios'
 import MarkdownIt from 'markdown-it'
-import { UploadFilled, Loading } from '@element-plus/icons-vue'
+import { UploadFilled, Loading, Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 
-const md = new MarkdownIt()
+const md = new MarkdownIt({
+  linkify: true, // 自动识别链接
+  breaks: true  // 支持换行
+})
+
+// 配置链接渲染器，使链接在新标签页中打开
+const defaultRender = md.renderer.rules.link_open || function(tokens, idx, options, env, self) {
+  return self.renderToken(tokens, idx, options)
+}
+md.renderer.rules.link_open = function (tokens, idx, options, env, self) {
+  const aIndex = tokens[idx].attrIndex('target')
+  if (aIndex < 0) {
+    tokens[idx].attrPush(['target', '_blank'])
+  } else {
+    tokens[idx].attrs[aIndex][1] = '_blank'
+  }
+  // 添加 rel="noopener noreferrer" 以提高安全性
+  const relIndex = tokens[idx].attrIndex('rel')
+  if (relIndex < 0) {
+    tokens[idx].attrPush(['rel', 'noopener noreferrer'])
+  } else {
+    tokens[idx].attrs[relIndex][1] = 'noopener noreferrer'
+  }
+  return defaultRender(tokens, idx, options, env, self)
+}
 const token = ref(localStorage.getItem('token'))
 const username = ref(localStorage.getItem('username'))
 const activeTab = ref('chat') // Default to chat as requested
@@ -131,6 +259,16 @@ const chatInput = ref('')
 const chatHistory = ref([])
 const chatLoading = ref(false)
 const chatScroll = ref(null)
+
+// Logs related
+const chatLogs = ref([])
+const logsLoading = ref(false)
+const logPage = ref(1)
+const logPageSize = ref(15)
+const logTotal = ref(0)
+const logFilterUsername = ref('')
+const logDetailVisible = ref(false)
+const selectedLog = ref(null)
 
 const scrollToBottom = async () => {
   await nextTick()
@@ -204,6 +342,50 @@ const handleChat = async () => {
         await nextTick()
         await scrollToBottom()
       }
+      
+      // 移除重复的引用文件部分
+      const removeDuplicateReferences = (content) => {
+        // 检查是否有多个"引用文件"部分（简单匹配）
+        const referenceMarkers = [
+          '**📎 引用文件：**',
+          '**引用文件：**',
+          '引用文件：',
+          '---\n**📎 引用文件：**'
+        ]
+        
+        let foundCount = 0
+        for (const marker of referenceMarkers) {
+          const regex = new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+          const matches = content.match(regex)
+          if (matches) {
+            foundCount += matches.length
+          }
+        }
+        
+        // 如果发现多个引用文件标记，移除除最后一个之外的所有引用文件部分
+        if (foundCount > 1) {
+          console.log(`检测到 ${foundCount} 个引用文件部分，移除重复部分`)
+          // 使用正则表达式匹配引用文件部分（从---开始到下一个---或文档结尾）
+          const referenceSectionPattern = /(\n\n---\s*\n\*\*[📎📄📁]*\s*引用文件[：:]\*\*\s*\n[^]*?)(?=\n\n---|$)/g
+          const sections = content.match(referenceSectionPattern)
+          if (sections && sections.length > 1) {
+            // 保留最后一个，移除前面的所有引用文件部分
+            const lastSection = sections[sections.length - 1]
+            let cleanedContent = content
+            // 移除除最后一个之外的所有引用文件部分
+            for (let i = 0; i < sections.length - 1; i++) {
+              cleanedContent = cleanedContent.replace(sections[i], '')
+            }
+            return cleanedContent
+          }
+        }
+        return content
+      }
+      
+      // 处理完成后，移除重复的引用文件部分
+      totalContent = removeDuplicateReferences(totalContent)
+      chatHistory.value[msgIndex].content = totalContent
+      
       if (chatHistory.value[msgIndex].content.trim() === '') {
         console.warn('警告: 没有接收到任何内容')
         chatHistory.value[msgIndex].content = '⚠️ 未收到响应内容，请检查后端服务或网络连接。'
@@ -290,6 +472,71 @@ const handleSearch = async () => {
     loading.value = false
   }
 }
+
+// Logs related methods
+const loadChatLogs = async () => {
+  logsLoading.value = true
+  try {
+    const params = {
+      page: logPage.value,
+      page_size: logPageSize.value
+    }
+    if (logFilterUsername.value) {
+      params.username = logFilterUsername.value
+    }
+    const res = await axios.get('http://localhost:8000/chat-logs', {
+      params,
+      headers: {
+        'Authorization': `Bearer ${token.value}`
+      }
+    })
+    chatLogs.value = res.data.items
+    logTotal.value = res.data.total
+  } catch (err) {
+    ElMessage.error('加载日志失败: ' + (err.response?.data?.detail || err.message))
+  } finally {
+    logsLoading.value = false
+  }
+}
+
+const handleLogPageChange = (page) => {
+  logPage.value = page
+  loadChatLogs()
+}
+
+const handleLogPageSizeChange = (size) => {
+  logPageSize.value = size
+  logPage.value = 1  // 重置到第一页
+  loadChatLogs()
+}
+
+const viewLogDetail = (log) => {
+  selectedLog.value = log
+  logDetailVisible.value = true
+}
+
+const formatDateTime = (dateTimeStr) => {
+  if (!dateTimeStr) return '-'
+  const date = new Date(dateTimeStr)
+  return date.toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  })
+}
+
+// 当切换到日志 tab 时自动加载
+const watchActiveTab = () => {
+  if (activeTab.value === 'logs' && chatLogs.value.length === 0) {
+    loadChatLogs()
+  }
+}
+
+// 监听 activeTab 变化
+watch(activeTab, watchActiveTab)
 </script>
 
 <style scoped>
@@ -328,6 +575,20 @@ const handleSearch = async () => {
 .markdown-body :deep(th), .markdown-body :deep(td) {
   border: 1px solid #ddd;
   padding: 8px;
+}
+.markdown-body :deep(a) {
+  color: #409eff;
+  text-decoration: none;
+  border-bottom: 1px solid #409eff;
+  transition: all 0.3s;
+}
+.markdown-body :deep(a:hover) {
+  color: #66b1ff;
+  border-bottom-color: #66b1ff;
+}
+.markdown-body :deep(a:visited) {
+  color: #7c3aed;
+  border-bottom-color: #7c3aed;
 }
 
 /* Chat Styles */
@@ -419,5 +680,60 @@ const handleSearch = async () => {
 .chat-messages::-webkit-scrollbar-thumb {
   background: #dcdfe6;
   border-radius: 3px;
+}
+
+/* Logs Styles */
+.logs-container {
+  padding: 20px;
+}
+
+.logs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.logs-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.pagination-container {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.log-detail {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.log-content {
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.rag-results {
+  margin: 10px 0;
+}
+
+.no-data {
+  padding: 20px;
+  text-align: center;
+  color: #999;
+}
+
+.llm-response {
+  padding: 15px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+  max-height: 400px;
+  overflow-y: auto;
 }
 </style>
