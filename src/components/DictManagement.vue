@@ -19,7 +19,7 @@
           >
             <el-table-column prop="type_name" label="编码" />
             <el-table-column prop="description" label="名称" show-overflow-tooltip />
-            <el-table-column label="操作" width="100">
+            <el-table-column label="操作" width="130">
               <template #default="{ row }">
                 <el-button type="text" size="small" @click.stop="openEditDictType(row)">编辑</el-button>
                 <el-button 
@@ -54,7 +54,7 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120">
+            <el-table-column label="操作" width="150">
               <template #default="{ row }">
                 <el-button type="text" size="small" @click="openEditDictData(row)">编辑</el-button>
                 <el-button type="text" size="small" style="color: #f56c6c" @click="handleDeleteDictData(row)">删除</el-button>
