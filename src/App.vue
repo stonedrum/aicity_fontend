@@ -208,6 +208,77 @@
               </div>
             </el-dialog>
           </el-tab-pane>
+
+          <el-tab-pane label="提示词配置" name="prompts">
+            <div class="prompts-container">
+              <div class="prompts-header">
+                <h3>提示词模板管理</h3>
+                <el-button type="primary" @click="openAddPrompt">新增提示词</el-button>
+              </div>
+
+              <el-table :data="prompts" style="width: 100%" v-loading="promptsLoading" stripe>
+                <el-table-column prop="name" label="名称" width="200" />
+                <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+                <el-table-column prop="version" label="版本" width="80" align="center" />
+                <el-table-column prop="is_active" label="状态" width="100">
+                  <template #default="{ row }">
+                    <el-tag :type="row.is_active ? 'success' : 'info'">{{ row.is_active ? '已启用' : '禁用' }}</el-tag>
+                  </template>
+                </el-table-column>
+                <el-table-column prop="updated_at" label="更新时间" width="180">
+                  <template #default="{ row }">
+                    {{ formatDateTime(row.updated_at) }}
+                  </template>
+                </el-table-column>
+                <el-table-column label="操作" width="180" fixed="right">
+                  <template #default="{ row }">
+                    <el-button type="primary" size="small" @click="openEditPrompt(row)">编辑</el-button>
+                    <el-button 
+                      type="danger" 
+                      size="small" 
+                      @click="handleDeletePrompt(row)"
+                      :disabled="row.name === 'rag_system_prompt'"
+                    >删除</el-button>
+                  </template>
+                </el-table-column>
+              </el-table>
+            </div>
+
+            <!-- 提示词编辑/新增对话框 -->
+            <el-dialog 
+              v-model="promptDialogVisible" 
+              :title="isEditingPrompt ? '编辑提示词' : '新增提示词'" 
+              width="60%"
+              :close-on-click-modal="false"
+            >
+              <el-form :model="promptForm" label-width="100px">
+                <el-form-item label="提示词名称">
+                  <el-input v-model="promptForm.name" placeholder="例如: chat_summary" :disabled="isEditingPrompt && promptForm.name === 'rag_system_prompt'"></el-input>
+                </el-form-item>
+                <el-form-item label="描述">
+                  <el-input v-model="promptForm.description" placeholder="对该提示词的用途进行说明"></el-input>
+                </el-form-item>
+                <el-form-item label="模板内容">
+                  <el-input 
+                    v-model="promptForm.template" 
+                    type="textarea" 
+                    :rows="12" 
+                    placeholder="请输入提示词模板，支持 {context}, {query} 等占位符"
+                  ></el-input>
+                  <div class="form-tip">提示：使用 {占位符} 进行动态填充</div>
+                </el-form-item>
+                <el-form-item label="是否启用">
+                  <el-switch v-model="promptForm.is_active"></el-switch>
+                </el-form-item>
+              </el-form>
+              <template #footer>
+                <span class="dialog-footer">
+                  <el-button @click="promptDialogVisible = false">取消</el-button>
+                  <el-button type="primary" @click="savePrompt" :loading="saveLoading">保存</el-button>
+                </span>
+              </template>
+            </el-dialog>
+          </el-tab-pane>
         </el-tabs>
       </div>
     </el-main>
@@ -225,6 +296,21 @@ const md = new MarkdownIt({
   linkify: true, // 自动识别链接
   breaks: true  // 支持换行
 })
+
+// 配置 Axios 响应拦截器处理 Token 超时
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response && error.response.status === 401) {
+      // 如果已经登录过且遇到 401，说明超时了
+      if (token.value) {
+        ElMessage.error('认证超时，请重新登录')
+        logout()
+      }
+    }
+    return Promise.reject(error)
+  }
+)
 
 // 配置链接渲染器，使链接在新标签页中打开
 const defaultRender = md.renderer.rules.link_open || function(tokens, idx, options, env, self) {
@@ -270,6 +356,20 @@ const logFilterUsername = ref('')
 const logDetailVisible = ref(false)
 const selectedLog = ref(null)
 
+// Prompts related
+const prompts = ref([])
+const promptsLoading = ref(false)
+const promptDialogVisible = ref(false)
+const isEditingPrompt = ref(false)
+const saveLoading = ref(false)
+const promptForm = ref({
+  id: null,
+  name: '',
+  description: '',
+  template: '',
+  is_active: true
+})
+
 const scrollToBottom = async () => {
   await nextTick()
   if (chatScroll.value) {
@@ -303,6 +403,11 @@ const handleChat = async () => {
     })
 
     if (!response.ok) {
+      if (response.status === 401) {
+        ElMessage.error('认证超时，请重新登录')
+        logout()
+        throw new Error('认证超时')
+      }
       const errorText = await response.text()
       console.error('请求失败:', response.status, errorText)
       throw new Error(`请求失败 (${response.status}): ${errorText || '未知错误'}`)
@@ -454,6 +559,8 @@ const logout = () => {
   username.value = null
   localStorage.removeItem('token')
   localStorage.removeItem('username')
+  activeTab.value = 'chat' // 重置标签
+  chatHistory.value = []    // 清空对话
 }
 
 const onUploadSuccess = () => {
@@ -515,6 +622,92 @@ const viewLogDetail = (log) => {
   logDetailVisible.value = true
 }
 
+// Prompts related methods
+const loadPrompts = async () => {
+  promptsLoading.value = true
+  try {
+    const res = await axios.get('http://localhost:8000/prompts', {
+      headers: authHeaders.value
+    })
+    prompts.value = res.data
+  } catch (err) {
+    ElMessage.error('加载提示词失败: ' + (err.response?.data?.detail || err.message))
+  } finally {
+    promptsLoading.value = false
+  }
+}
+
+const openAddPrompt = () => {
+  isEditingPrompt.value = false
+  promptForm.value = {
+    id: null,
+    name: '',
+    description: '',
+    template: '',
+    is_active: true
+  }
+  promptDialogVisible.value = true
+}
+
+const openEditPrompt = (row) => {
+  isEditingPrompt.value = true
+  promptForm.value = { ...row }
+  promptDialogVisible.value = true
+}
+
+const savePrompt = async () => {
+  if (!promptForm.value.name || !promptForm.value.template) {
+    ElMessage.warning('名称和模板不能为空')
+    return
+  }
+  
+  saveLoading.value = true
+  try {
+    if (isEditingPrompt.value) {
+      await axios.put(`http://localhost:8000/prompts/${promptForm.value.id}`, promptForm.value, {
+        headers: authHeaders.value
+      })
+      ElMessage.success('更新成功')
+    } else {
+      await axios.post('http://localhost:8000/prompts', promptForm.value, {
+        headers: authHeaders.value
+      })
+      ElMessage.success('创建成功')
+    }
+    promptDialogVisible.value = false
+    loadPrompts()
+  } catch (err) {
+    ElMessage.error('保存失败: ' + (err.response?.data?.detail || err.message))
+  } finally {
+    saveLoading.value = false
+  }
+}
+
+const handleDeletePrompt = (row) => {
+  if (row.name === 'rag_system_prompt') {
+    ElMessage.warning('系统核心提示词不可删除')
+    return
+  }
+  
+  // 使用 Element Plus 的确认框
+  // 注意：需要确保应用中已正确引入相关样式，这里我们假设已由框架处理
+  if (confirm(`确定要删除提示词 "${row.name}" 吗？`)) {
+    deletePrompt(row.id)
+  }
+}
+
+const deletePrompt = async (id) => {
+  try {
+    await axios.delete(`http://localhost:8000/prompts/${id}`, {
+      headers: authHeaders.value
+    })
+    ElMessage.success('删除成功')
+    loadPrompts()
+  } catch (err) {
+    ElMessage.error('删除失败: ' + (err.response?.data?.detail || err.message))
+  }
+}
+
 const formatDateTime = (dateTimeStr) => {
   if (!dateTimeStr) return '-'
   const date = new Date(dateTimeStr)
@@ -532,6 +725,9 @@ const formatDateTime = (dateTimeStr) => {
 const watchActiveTab = () => {
   if (activeTab.value === 'logs' && chatLogs.value.length === 0) {
     loadChatLogs()
+  }
+  if (activeTab.value === 'prompts') {
+    loadPrompts()
   }
 }
 
@@ -735,5 +931,29 @@ watch(activeTab, watchActiveTab)
   border-radius: 4px;
   max-height: 400px;
   overflow-y: auto;
+}
+
+/* Prompts Styles */
+.prompts-container {
+  padding: 20px;
+}
+
+.prompts-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.prompts-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 5px;
 }
 </style>
