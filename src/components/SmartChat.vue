@@ -104,6 +104,8 @@ const handleChat = async () => {
   chatLoading.value = true
   
   try {
+    const withoutLast = chatHistory.value.slice(0, -1);
+    const lastFour = withoutLast.slice(-4);
     const response = await fetch('http://127.0.0.1:8000/chat', {
       method: 'POST',
       headers: {
@@ -112,7 +114,7 @@ const handleChat = async () => {
       },
       body: JSON.stringify({
         message: userMsg,
-        history: chatHistory.value.slice(0, -1),
+        // history: lastFour,
         stream: true,
         kb_type: chatKbType.value || null
       })

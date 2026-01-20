@@ -92,6 +92,17 @@
         </div>
         <div v-else class="no-data">无数据</div>
 
+        <el-divider>LLM 完整上下文 (llm_messages)</el-divider>
+        <div v-if="selectedLog.llm_messages && selectedLog.llm_messages.length > 0" class="llm-messages-context">
+          <div v-for="(msg, index) in selectedLog.llm_messages" :key="index" class="msg-item" :class="msg.role">
+            <div class="msg-header">
+              <el-tag size="small" :type="getRoleTagType(msg.role)">{{ msg.role.toUpperCase() }}</el-tag>
+            </div>
+            <pre class="msg-body">{{ msg.content }}</pre>
+          </div>
+        </div>
+        <div v-else class="no-data">无上下文记录</div>
+
         <el-divider>LLM 响应</el-divider>
         <div class="llm-response">
           <div class="markdown-body" v-html="renderMarkdown(selectedLog.llm_response || '无响应')"></div>
@@ -114,6 +125,15 @@ const md = new MarkdownIt({
 })
 
 const renderMarkdown = (content) => md.render(content)
+
+const getRoleTagType = (role) => {
+  switch (role) {
+    case 'system': return 'danger'
+    case 'user': return 'primary'
+    case 'assistant': return 'success'
+    default: return 'info'
+  }
+}
 
 const props = defineProps({
   token: String
@@ -227,5 +247,41 @@ onMounted(() => {
   border-radius: 4px;
   max-height: 400px;
   overflow-y: auto;
+}
+.llm-messages-context {
+  margin: 10px 0;
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  padding: 10px;
+  background-color: #fafafa;
+}
+.msg-item {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #eee;
+}
+.msg-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+.msg-header {
+  margin-bottom: 5px;
+}
+.msg-body {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: inherit;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+  background: transparent;
+  padding: 0;
+  border: none;
+}
+.msg-item.system .msg-body {
+  color: #909399;
 }
 </style>
