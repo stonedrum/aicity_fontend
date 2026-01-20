@@ -35,8 +35,20 @@
             <SmartChat :kbTypeOptions="kbTypeOptions" :token="token" :logout="logout" />
           </el-tab-pane>
 
+          <el-tab-pane label="文档管理" name="documents">
+            <DocumentManagement 
+              :kbTypeOptions="kbTypeOptions" 
+              :token="token" 
+              @view-clauses="handleViewClauses" 
+            />
+          </el-tab-pane>
+
           <el-tab-pane label="知识库管理" name="search">
-            <KnowledgeManagement :kbTypeOptions="kbTypeOptions" :token="token" />
+            <KnowledgeManagement 
+              :kbTypeOptions="kbTypeOptions" 
+              :token="token" 
+              :initialDocId="selectedDocId"
+            />
           </el-tab-pane>
 
           <el-tab-pane label="文档上传" name="upload">
@@ -67,6 +79,7 @@ import { ElMessage } from 'element-plus'
 
 // Import sub-components
 import DocumentUpload from './components/DocumentUpload.vue'
+import DocumentManagement from './components/DocumentManagement.vue'
 import KnowledgeManagement from './components/KnowledgeManagement.vue'
 import SmartChat from './components/SmartChat.vue'
 import ChatLogs from './components/ChatLogs.vue'
@@ -90,6 +103,7 @@ axios.interceptors.response.use(
 const token = ref(localStorage.getItem('token'))
 const username = ref(localStorage.getItem('username'))
 const activeTab = ref('chat')
+const selectedDocId = ref(null)
 const loginForm = ref({ username: '', password: '' })
 const kbTypeOptions = ref([])
 
@@ -97,18 +111,28 @@ const authHeaders = computed(() => ({
   Authorization: `Bearer ${token.value}`
 }))
 
+const handleViewClauses = ({ docId }) => {
+  selectedDocId.value = docId
+  activeTab.value = 'search'
+}
+
 const loadKbTypes = async () => {
+  console.log('Fetching kb_type options...')
   try {
-    const res = await axios.get('http://localhost:8000/dicts/kb_type')
+    const res = await axios.get('http://127.0.0.1:8000/dicts/kb_type')
     kbTypeOptions.value = res.data
+    console.log('kb_type options loaded:', res.data)
   } catch (err) {
     console.error('加载知识库类型字典失败:', err)
   }
 }
 
+// 立即尝试加载，无需等待 onMounted，也不必检查 token
+loadKbTypes()
+
 const handleLogin = async () => {
   try {
-    const res = await axios.post('http://localhost:8000/token', loginForm.value)
+    const res = await axios.post('http://127.0.0.1:8000/token', loginForm.value)
     token.value = res.data.access_token
     username.value = loginForm.value.username
     localStorage.setItem('token', token.value)
@@ -122,7 +146,7 @@ const handleLogin = async () => {
 
 const handleRegister = async () => {
   try {
-    const res = await axios.post('http://localhost:8000/register', loginForm.value)
+    const res = await axios.post('http://127.0.0.1:8000/register', loginForm.value)
     token.value = res.data.access_token
     username.value = loginForm.value.username
     localStorage.setItem('token', token.value)

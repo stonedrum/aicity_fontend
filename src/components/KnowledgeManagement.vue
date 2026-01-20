@@ -14,12 +14,12 @@
             remote
             reserve-keyword
             placeholder="请选择或输入搜索..."
-            :remote-method="remoteSearchDocs"
+            :remote-method="(query) => remoteSearchDocs(query, filterType)"
             :loading="docsLoading"
             clearable
             style="width: 200px;"
             @change="handleSearch"
-            @focus="remoteSearchDocs('')"
+            @focus="remoteSearchDocs('', filterType)"
           >
             <el-option
               v-for="item in docOptions"
@@ -43,6 +43,7 @@
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button type="success" @click="openAdd">新增条款</el-button>
           <el-button type="warning" @click="openBatchImport">批量导入</el-button>
+          <el-button type="danger" :disabled="selectedIds.length === 0" @click="openBatchEdit">批量设置</el-button>
           <el-button @click="configDialogVisible = true">表格配置</el-button>
         </el-form-item>
       </el-form>
@@ -56,7 +57,9 @@
       size="small" 
       style="width: 100%"
       @header-dragend="handleHeaderDragend"
+      @selection-change="handleSelectionChange"
     >
+      <el-table-column type="selection" width="50" fixed="left" />
       <template v-for="col in activeColumns" :key="col.prop">
         <el-table-column
           v-if="col.visible"
@@ -123,11 +126,11 @@
             remote
             reserve-keyword
             placeholder="请选择或输入搜索..."
-            :remote-method="remoteSearchDocs"
+            :remote-method="(query) => remoteSearchDocs(query, form.kb_type)"
             :loading="docsLoading"
             clearable
             style="width: 100%;"
-            @focus="remoteSearchDocs('')"
+            @focus="remoteSearchDocs('', form.kb_type)"
           >
             <el-option
               v-for="item in docOptions"
@@ -166,11 +169,11 @@
             remote
             reserve-keyword
             placeholder="请选择或输入搜索..."
-            :remote-method="remoteSearchDocs"
+            :remote-method="(query) => remoteSearchDocs(query, batchForm.kb_type)"
             :loading="docsLoading"
             clearable
             style="width: 100%;"
-            @focus="remoteSearchDocs('')"
+            @focus="remoteSearchDocs('', batchForm.kb_type)"
           >
             <el-option
               v-for="item in docOptions"
@@ -198,6 +201,62 @@
       <template #footer>
         <el-button @click="batchDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="batchLoading" @click="handleBatchImport">开始导入</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量编辑对话框 -->
+    <el-dialog v-model="batchEditVisible" title="批量设置条款属性" width="500px">
+      <el-form :model="batchEditForm" label-width="120px">
+        <p style="margin-bottom: 20px; color: #666;">将对选中的 {{ selectedIds.length }} 条记录进行修改。勾选下方项进行批量设置：</p>
+        
+        <el-form-item label="修改知识库类型">
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-checkbox v-model="batchEditFields.kb_type" style="margin-right: 10px;" />
+            <el-select v-model="batchEditForm.kb_type" :disabled="!batchEditFields.kb_type" placeholder="请选择类型" style="flex: 1;">
+              <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+            </el-select>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="修改所属文档">
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-checkbox v-model="batchEditFields.doc_id" style="margin-right: 10px;" />
+            <el-select
+              v-model="batchEditForm.doc_id"
+              :disabled="!batchEditFields.doc_id"
+              filterable
+              remote
+              reserve-keyword
+              placeholder="搜索文档..."
+              :remote-method="remoteSearchDocs"
+              :loading="docsLoading"
+              clearable
+              style="flex: 1;"
+              @focus="remoteSearchDocs('')"
+            >
+              <el-option
+                v-for="item in docOptions"
+                :key="item.id"
+                :label="item.filename"
+                :value="item.id"
+              />
+            </el-select>
+          </div>
+        </el-form-item>
+
+        <el-form-item label="修改校验状态">
+          <div style="display: flex; align-items: center; width: 100%;">
+            <el-checkbox v-model="batchEditFields.is_verified" style="margin-right: 10px;" />
+            <el-radio-group v-model="batchEditForm.is_verified" :disabled="!batchEditFields.is_verified">
+              <el-radio :label="true">已校验</el-radio>
+              <el-radio :label="false">未校验</el-radio>
+            </el-radio-group>
+          </div>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchEditVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchEditLoading" @click="handleBatchEdit">确定修改</el-button>
       </template>
     </el-dialog>
 
@@ -242,14 +301,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
 
 const props = defineProps({
   kbTypeOptions: Array,
-  token: String
+  token: String,
+  initialDocId: {
+    type: String,
+    default: null
+  }
 })
 
 const loading = ref(false)
@@ -275,6 +338,13 @@ const batchLoading = ref(false)
 const batchForm = ref({ kb_type: '', doc_id: null, items: [] })
 const batchSummary = ref('未选择文件')
 
+// 批量设置
+const selectedIds = ref([])
+const batchEditVisible = ref(false)
+const batchEditLoading = ref(false)
+const batchEditFields = ref({ kb_type: false, doc_id: false, is_verified: false })
+const batchEditForm = ref({ kb_type: '', doc_id: null, is_verified: true })
+
 // 表格配置
 const configDialogVisible = ref(false)
 const defaultColumns = [
@@ -298,7 +368,7 @@ const getKbTypeLabel = (val) => {
 const loadClauses = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://localhost:8000/clauses', {
+    const res = await axios.get('http://127.0.0.1:8000/clauses', {
       params: {
         page: page.value,
         page_size: pageSize.value,
@@ -331,6 +401,50 @@ const handleSizeChange = (val) => {
 const handlePageChange = (val) => {
   page.value = val
   loadClauses()
+}
+
+const handleSelectionChange = (selection) => {
+  selectedIds.value = selection.map(row => row.id)
+}
+
+const openBatchEdit = () => {
+  batchEditFields.value = { kb_type: false, doc_id: false, is_verified: false }
+  batchEditForm.value = { 
+    kb_type: props.kbTypeOptions[0]?.value || '', 
+    doc_id: null, 
+    is_verified: true 
+  }
+  batchEditVisible.value = true
+}
+
+const handleBatchEdit = async () => {
+  const hasField = Object.values(batchEditFields.value).some(v => v)
+  if (!hasField) {
+    ElMessage.warning('请至少勾选一个要修改的属性')
+    return
+  }
+
+  batchEditLoading.value = true
+  try {
+    const payload = {
+      ids: selectedIds.value
+    }
+    if (batchEditFields.value.kb_type) payload.kb_type = batchEditForm.value.kb_type
+    if (batchEditFields.value.doc_id) payload.doc_id = batchEditForm.value.doc_id
+    if (batchEditFields.value.is_verified) payload.is_verified = batchEditForm.value.is_verified
+
+    await axios.post('http://127.0.0.1:8000/clauses/batch-update', payload, {
+      headers: { Authorization: `Bearer ${props.token}` }
+    })
+    
+    ElMessage.success('批量修改成功')
+    batchEditVisible.value = false
+    loadClauses()
+  } catch (err) {
+    ElMessage.error('批量修改失败')
+  } finally {
+    batchEditLoading.value = false
+  }
 }
 
 const openAdd = () => {
@@ -422,7 +536,7 @@ const handleBatchImport = async () => {
   }
   batchLoading.value = true
   try {
-    await axios.post('http://localhost:8000/clauses/batch', batchForm.value, {
+    await axios.post('http://127.0.0.1:8000/clauses/batch', batchForm.value, {
       headers: { Authorization: `Bearer ${props.token}` }
     })
     ElMessage.success('批量导入成功')
@@ -447,11 +561,11 @@ const handleSave = async (continueAdding = false) => {
   try {
     let res
     if (isEdit.value) {
-      res = await axios.put(`http://localhost:8000/clauses/${form.value.id}`, form.value, {
+      res = await axios.put(`http://127.0.0.1:8000/clauses/${form.value.id}`, form.value, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
     } else {
-      res = await axios.post('http://localhost:8000/clauses', form.value, {
+      res = await axios.post('http://127.0.0.1:8000/clauses', form.value, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
     }
@@ -491,7 +605,7 @@ const handleSave = async (continueAdding = false) => {
 const handleDelete = (row) => {
   ElMessageBox.confirm('确定要删除该条款吗？', '提示', { type: 'warning' }).then(async () => {
     try {
-      await axios.delete(`http://localhost:8000/clauses/${row.id}`, {
+      await axios.delete(`http://127.0.0.1:8000/clauses/${row.id}`, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('删除成功')
@@ -512,7 +626,7 @@ const toggleVerify = (row) => {
     type: 'info'
   }).then(async () => {
     try {
-      await axios.put(`http://localhost:8000/clauses/${row.id}`, {
+      await axios.put(`http://127.0.0.1:8000/clauses/${row.id}`, {
         is_verified: targetStatus
       }, {
         headers: { Authorization: `Bearer ${props.token}` }
@@ -525,15 +639,21 @@ const toggleVerify = (row) => {
   }).catch(() => {})
 }
 
-const remoteSearchDocs = async (query) => {
+const remoteSearchDocs = async (query, kbType = null) => {
   docsLoading.value = true
   try {
-    const res = await axios.get('http://localhost:8000/documents', {
-      params: { keyword: query || null },
+    const res = await axios.get('http://127.0.0.1:8000/documents', {
+      params: { 
+        keyword: query || null,
+        kb_type: kbType || null,
+        page: 1,
+        page_size: 100 // 搜索框建议返回多一点
+      },
       headers: { Authorization: `Bearer ${props.token}` }
     })
     
-    const newDocs = res.data
+    // 后端现在返回的是分页对象 { items: [], total: ... }
+    const newDocs = res.data.items || []
     // 收集当前正在使用的所有文档ID（包括筛选器和对话框表单中的）
     const activeDocIds = [form.value.doc_id, filterDocId.value].filter(id => !!id)
     
@@ -599,10 +719,26 @@ const handleHeaderDragend = (newWidth, oldWidth, column, event) => {
   }
 }
 
+watch(() => filterType.value, (newType) => {
+  // 当知识库类型变化时，重置文档筛选，并重新搜索文档
+  filterDocId.value = null
+  remoteSearchDocs('', newType)
+})
+
 onMounted(() => {
   loadTableConfig()
+  if (props.initialDocId) {
+    filterDocId.value = props.initialDocId
+  }
   loadClauses()
-  remoteSearchDocs('') // 初始化加载文档列表
+  remoteSearchDocs('', filterType.value) // 初始化加载匹配当前类型的文档列表
+})
+
+watch(() => props.initialDocId, (newId) => {
+  if (newId) {
+    filterDocId.value = newId
+    loadClauses()
+  }
 })
 </script>
 

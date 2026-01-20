@@ -1,0 +1,385 @@
+<template>
+  <div class="document-management">
+    <div class="toolbar">
+      <el-form :inline="true" size="small">
+        <el-form-item label="知识库类型">
+          <el-select v-model="filterKbType" placeholder="全部类型" clearable style="width: 150px;" @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="关键词">
+          <el-input v-model="keyword" placeholder="搜索文件名..." clearable @keyup.enter="handleSearch" style="width: 250px;" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-button type="success" @click="openAdd">新增文档</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+
+    <el-table v-loading="loading" :data="documents" border stripe size="small" style="width: 100%">
+      <el-table-column prop="kb_type" label="知识库类型" width="150">
+        <template #default="{ row }">
+          <el-tag size="small" type="info">{{ getKbTypeLabel(row.kb_type) }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column prop="filename" label="文件名" min-width="250" show-overflow-tooltip />
+      <el-table-column prop="uploader" label="上传人" width="120" />
+      <el-table-column prop="upload_time" label="上传时间" width="180">
+        <template #default="{ row }">
+          {{ formatDate(row.upload_time) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="操作" width="280" fixed="right">
+        <template #default="{ row }">
+          <el-button type="text" size="small" @click="viewFile(row)">查看文件</el-button>
+          <el-button type="text" size="small" @click="viewClauses(row)">查看条目</el-button>
+          <el-button type="text" size="small" @click="openBatchImportRow(row)">批量导入</el-button>
+          <el-button type="text" size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button type="text" size="small" style="color: #f56c6c" @click="handleDelete(row)">删除</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <div class="pagination">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        :total="total"
+        @size-change="handleSizeChange"
+        @current-change="handlePageChange"
+      />
+    </div>
+
+    <!-- 新增/编辑对话框 -->
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑文档' : '新增文档'" width="500px">
+      <el-form :model="form" label-width="100px">
+        <el-form-item label="知识库类型">
+          <el-select v-model="form.kb_type" placeholder="请选择类型" style="width: 100%">
+            <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="文件名" v-if="isEdit">
+          <el-input v-model="form.filename" placeholder="请输入文件名" />
+        </el-form-item>
+        <el-form-item label="上传文件" v-if="!isEdit">
+          <el-upload
+            class="upload-demo"
+            action="#"
+            :auto-upload="false"
+            :limit="1"
+            :on-change="handleFileChange"
+            :show-file-list="true"
+          >
+            <el-button type="primary">选择 PDF 文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">仅上传文件，不进行知识条目自动拆分</div>
+            </template>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saveLoading" @click="handleSave">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 批量导入对话框 -->
+    <el-dialog v-model="batchDialogVisible" title="批量导入条款" width="600px">
+      <el-form :model="batchForm" label-width="100px">
+        <el-form-item label="归属类型">
+          <el-select v-model="batchForm.kb_type" placeholder="请选择类型" style="width: 100%" disabled>
+            <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="所属文档">
+          <el-input :value="batchDocName" readonly style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="导入文件">
+          <el-upload
+            :auto-upload="false"
+            accept=".json,application/json"
+            :limit="1"
+            :on-change="handleBatchFileChange"
+            :show-file-list="true"
+          >
+            <el-button type="primary">选择 JSON 文件</el-button>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="解析结果">
+          <el-input v-model="batchSummary" type="textarea" :rows="4" readonly />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchLoading" @click="handleBatchImport">开始导入</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue'
+import axios from 'axios'
+import { ElMessage, ElMessageBox } from 'element-plus'
+
+const props = defineProps({
+  kbTypeOptions: Array,
+  token: String
+})
+
+const emit = defineEmits(['view-clauses'])
+
+const loading = ref(false)
+const documents = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = ref(20)
+const filterKbType = ref('')
+const keyword = ref('')
+
+// 新增/编辑相关
+const dialogVisible = ref(false)
+const isEdit = ref(false)
+const saveLoading = ref(false)
+const form = ref({ id: null, kb_type: '', filename: '' })
+const selectedFile = ref(null)
+
+// 批量导入相关
+const batchDialogVisible = ref(false)
+const batchLoading = ref(false)
+const batchForm = ref({ kb_type: '', doc_id: null, items: [] })
+const batchDocName = ref('')
+const batchSummary = ref('未选择文件')
+
+const getKbTypeLabel = (val) => {
+  const item = props.kbTypeOptions.find(i => i.value === val)
+  return item ? item.label : val
+}
+
+const formatDate = (dateStr) => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  return date.toLocaleString()
+}
+
+const loadDocuments = async () => {
+  loading.value = true
+  try {
+    const res = await axios.get('http://127.0.0.1:8000/documents', {
+      params: { 
+        page: page.value,
+        page_size: pageSize.value,
+        kb_type: filterKbType.value || null,
+        keyword: keyword.value || null 
+      },
+      headers: { Authorization: `Bearer ${props.token}` }
+    })
+    documents.value = res.data.items
+    total.value = res.data.total
+  } catch (err) {
+    ElMessage.error('加载文档列表失败')
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleSearch = () => {
+  page.value = 1
+  loadDocuments()
+}
+
+const handleSizeChange = (val) => {
+  pageSize.value = val
+  loadDocuments()
+}
+
+const handlePageChange = (val) => {
+  page.value = val
+  loadDocuments()
+}
+
+const openBatchImportRow = (row) => {
+  batchForm.value = { 
+    kb_type: row.kb_type,
+    doc_id: row.id,
+    items: []
+  }
+  batchDocName.value = row.filename
+  batchSummary.value = '未选择文件'
+  batchDialogVisible.value = true
+}
+
+const handleBatchFileChange = (file) => {
+  const rawFile = file.raw
+  if (!rawFile) {
+    batchSummary.value = '读取文件失败'
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (evt) => {
+    try {
+      const text = String(evt.target?.result || '').replace(/^\uFEFF/, '')
+      const data = JSON.parse(text || '[]')
+      if (!Array.isArray(data)) {
+        batchSummary.value = 'JSON 结构错误：根节点应为数组'
+        batchForm.value.items = []
+        return
+      }
+
+      const items = data
+        .map(item => ({
+          chapter_path: item['章节标题'] || item.chapter_path || '',
+          content: item['内容'] || item.content || ''
+        }))
+        .filter(item => item.chapter_path && item.content)
+
+      batchForm.value.items = items
+      const invalidCount = data.length - items.length
+      batchSummary.value = `解析成功：${items.length} 条，跳过无效：${invalidCount} 条`
+      if (items.length === 0) {
+        ElMessage.warning('未解析到有效条款，请检查字段是否为“章节标题”和“内容”')
+      }
+    } catch (e) {
+      console.error('JSON 解析失败:', e)
+      batchSummary.value = `JSON 解析失败：${e.message || '请检查格式'}`
+      batchForm.value.items = []
+    }
+  }
+  reader.readAsText(rawFile, 'utf-8')
+}
+
+const handleBatchImport = async () => {
+  if (!batchForm.value.items.length) {
+    ElMessage.warning('请先选择并解析 JSON 文件')
+    return
+  }
+  batchLoading.value = true
+  try {
+    await axios.post('http://127.0.0.1:8000/clauses/batch', batchForm.value, {
+      headers: { Authorization: `Bearer ${props.token}` }
+    })
+    ElMessage.success('批量导入成功')
+    batchDialogVisible.value = false
+  } catch (err) {
+    const detail = err?.response?.data?.detail
+    const status = err?.response?.status
+    const message = detail ? `批量导入失败：${detail}` : '批量导入失败'
+    ElMessage.error(status ? `${message} (HTTP ${status})` : message)
+  } finally {
+    batchLoading.value = false
+  }
+}
+
+const openAdd = () => {
+  isEdit.value = false
+  form.value = { id: null, kb_type: props.kbTypeOptions[0]?.value || '', filename: '' }
+  selectedFile.value = null
+  dialogVisible.value = true
+}
+
+const openEdit = (row) => {
+  isEdit.value = true
+  form.value = { ...row }
+  dialogVisible.value = true
+}
+
+const handleFileChange = (file) => {
+  selectedFile.value = file.raw
+}
+
+const handleSave = async () => {
+  if (!form.value.kb_type) {
+    ElMessage.warning('请选择知识库类型')
+    return
+  }
+
+  saveLoading.value = true
+  try {
+    if (isEdit.value) {
+      await axios.put(`http://127.0.0.1:8000/documents/${form.value.id}`, {
+        filename: form.value.filename,
+        kb_type: form.value.kb_type
+      }, {
+        headers: { Authorization: `Bearer ${props.token}` }
+      })
+      ElMessage.success('更新成功')
+    } else {
+      if (!selectedFile.value) {
+        ElMessage.warning('请选择要上传的文件')
+        saveLoading.value = false
+        return
+      }
+      const formData = new FormData()
+      formData.append('file', selectedFile.value)
+      formData.append('kb_type', form.value.kb_type)
+      
+      await axios.post('http://127.0.0.1:8000/documents', formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          Authorization: `Bearer ${props.token}` 
+        }
+      })
+      ElMessage.success('上传成功')
+    }
+    dialogVisible.value = false
+    loadDocuments()
+  } catch (err) {
+    ElMessage.error(isEdit.value ? '更新失败' : '上传失败: ' + (err.response?.data?.detail || err.message))
+  } finally {
+    saveLoading.value = false
+  }
+}
+
+const viewFile = (row) => {
+  if (row.file_url) {
+    window.open(row.file_url, '_blank')
+  } else {
+    ElMessage.warning('文件链接不存在')
+  }
+}
+
+const viewClauses = (row) => {
+  emit('view-clauses', { docId: row.id, docName: row.filename })
+}
+
+const handleDelete = (row) => {
+  ElMessageBox.confirm(`确定要删除文档 "${row.filename}" 及其关联的所有知识条目吗？该操作不可恢复！`, '极其重要提示', {
+    type: 'warning',
+    confirmButtonText: '确定删除',
+    confirmButtonClass: 'el-button--danger'
+  }).then(async () => {
+    try {
+      // 假设后端支持 DELETE /documents/{id} 并且联级删除条目
+      await axios.delete(`http://127.0.0.1:8000/documents/${row.id}`, {
+        headers: { Authorization: `Bearer ${props.token}` }
+      })
+      ElMessage.success('删除成功')
+      loadDocuments()
+    } catch (err) {
+      ElMessage.error('删除失败: ' + (err.response?.data?.detail || err.message))
+    }
+  }).catch(() => {})
+}
+
+onMounted(() => {
+  loadDocuments()
+})
+</script>
+
+<style scoped>
+.document-management {
+  padding: 20px;
+}
+.toolbar {
+  margin-bottom: 20px;
+}
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

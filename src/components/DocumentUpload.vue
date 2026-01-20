@@ -16,7 +16,7 @@
     <el-upload
       class="upload-demo"
       drag
-      action="http://localhost:8000/upload"
+      action="http://127.0.0.1:8000/upload"
       :headers="authHeaders"
       :data="{ kb_type: uploadKbType }"
       :on-success="onUploadSuccess"

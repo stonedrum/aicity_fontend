@@ -138,7 +138,7 @@ const loadChatLogs = async () => {
     if (logFilterUsername.value) {
       params.username = logFilterUsername.value
     }
-    const res = await axios.get('http://localhost:8000/chat-logs', {
+    const res = await axios.get('http://127.0.0.1:8000/chat-logs', {
       params,
       headers: {
         'Authorization': `Bearer ${props.token}`
