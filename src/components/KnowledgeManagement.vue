@@ -42,6 +42,7 @@
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
           <el-button type="success" @click="openAdd">新增条款</el-button>
+          <el-button type="warning" @click="openBatchImport">批量导入</el-button>
           <el-button @click="configDialogVisible = true">表格配置</el-button>
         </el-form-item>
       </el-form>
@@ -150,6 +151,56 @@
       </template>
     </el-dialog>
 
+    <!-- 批量导入对话框 -->
+    <el-dialog v-model="batchDialogVisible" title="批量导入条款" width="600px">
+      <el-form :model="batchForm" label-width="100px">
+        <el-form-item label="归属类型">
+          <el-select v-model="batchForm.kb_type" placeholder="请选择类型" style="width: 100%">
+            <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="所属文档">
+          <el-select
+            v-model="batchForm.doc_id"
+            filterable
+            remote
+            reserve-keyword
+            placeholder="请选择或输入搜索..."
+            :remote-method="remoteSearchDocs"
+            :loading="docsLoading"
+            clearable
+            style="width: 100%;"
+            @focus="remoteSearchDocs('')"
+          >
+            <el-option
+              v-for="item in docOptions"
+              :key="item.id"
+              :label="item.filename"
+              :value="item.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="导入文件">
+          <el-upload
+            :auto-upload="false"
+            accept=".json,application/json"
+            :limit="1"
+            :on-change="handleBatchFileChange"
+            :show-file-list="true"
+          >
+            <el-button type="primary">选择 JSON 文件</el-button>
+          </el-upload>
+        </el-form-item>
+        <el-form-item label="解析结果">
+          <el-input v-model="batchSummary" type="textarea" :rows="4" readonly />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="batchDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="batchLoading" @click="handleBatchImport">开始导入</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 表格配置对话框 -->
     <el-dialog v-model="configDialogVisible" title="表格列配置" width="500px">
       <el-table :data="columnConfigs" size="small" border>
@@ -218,6 +269,11 @@ const dialogVisible = ref(false)
 const isEdit = ref(false)
 const saveLoading = ref(false)
 const form = ref({ id: null, kb_type: '', chapter_path: '', content: '', doc_id: null })
+
+const batchDialogVisible = ref(false)
+const batchLoading = ref(false)
+const batchForm = ref({ kb_type: '', doc_id: null, items: [] })
+const batchSummary = ref('未选择文件')
 
 // 表格配置
 const configDialogVisible = ref(false)
@@ -296,6 +352,16 @@ const openAdd = () => {
   dialogVisible.value = true
 }
 
+const openBatchImport = () => {
+  batchForm.value = { 
+    kb_type: props.kbTypeOptions[0]?.value || '',
+    doc_id: filterDocId.value || null,
+    items: []
+  }
+  batchSummary.value = '未选择文件'
+  batchDialogVisible.value = true
+}
+
 const openEdit = (row) => {
   isEdit.value = true
   form.value = { ...row }
@@ -304,6 +370,72 @@ const openEdit = (row) => {
     docOptions.value.push({ id: row.doc_id, filename: row.doc_name })
   }
   dialogVisible.value = true
+}
+
+const handleBatchFileChange = (file) => {
+  const rawFile = file.raw
+  if (!rawFile) {
+    batchSummary.value = '读取文件失败'
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = (evt) => {
+    try {
+      const text = String(evt.target?.result || '').replace(/^\uFEFF/, '')
+      const data = JSON.parse(text || '[]')
+      if (!Array.isArray(data)) {
+        batchSummary.value = 'JSON 结构错误：根节点应为数组'
+        batchForm.value.items = []
+        return
+      }
+
+      const items = data
+        .map(item => ({
+          chapter_path: item['章节标题'] || item.chapter_path || '',
+          content: item['内容'] || item.content || ''
+        }))
+        .filter(item => item.chapter_path && item.content)
+
+      batchForm.value.items = items
+      const invalidCount = data.length - items.length
+      batchSummary.value = `解析成功：${items.length} 条，跳过无效：${invalidCount} 条`
+      if (items.length === 0) {
+        ElMessage.warning('未解析到有效条款，请检查字段是否为“章节标题”和“内容”')
+      }
+    } catch (e) {
+      console.error('JSON 解析失败:', e)
+      batchSummary.value = `JSON 解析失败：${e.message || '请检查格式'}`
+      batchForm.value.items = []
+    }
+  }
+  reader.readAsText(rawFile, 'utf-8')
+}
+
+const handleBatchImport = async () => {
+  if (!batchForm.value.kb_type) {
+    ElMessage.warning('请选择归属类型')
+    return
+  }
+  if (!batchForm.value.items.length) {
+    ElMessage.warning('请先选择并解析 JSON 文件')
+    return
+  }
+  batchLoading.value = true
+  try {
+    await axios.post('http://localhost:8000/clauses/batch', batchForm.value, {
+      headers: { Authorization: `Bearer ${props.token}` }
+    })
+    ElMessage.success('批量导入成功')
+    batchDialogVisible.value = false
+    loadClauses()
+  } catch (err) {
+    const detail = err?.response?.data?.detail
+    const status = err?.response?.status
+    const message = detail ? `批量导入失败：${detail}` : '批量导入失败'
+    ElMessage.error(status ? `${message} (HTTP ${status})` : message)
+  } finally {
+    batchLoading.value = false
+  }
 }
 
 const handleSave = async (continueAdding = false) => {
