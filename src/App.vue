@@ -2,7 +2,7 @@
   <el-container class="layout-container">
     <el-header>
       <div class="header-content">
-        <h2>市政专家知识库</h2>
+        <h2>城维云智能市政运维专家</h2>
         <div v-if="token">
           <span>欢迎, {{ username }}</span>
           <el-button type="text" @click="logout">退出</el-button>
@@ -35,6 +35,10 @@
             <SmartChat :kbTypeOptions="kbTypeOptions" :token="token" :logout="logout" />
           </el-tab-pane>
 
+          <el-tab-pane label="模型对比" name="comparison">
+            <ModelComparison :kbTypeOptions="kbTypeOptions" :token="token" :logout="logout" />
+          </el-tab-pane>
+
           <el-tab-pane label="文档管理" name="documents">
             <DocumentManagement 
               :kbTypeOptions="kbTypeOptions" 
@@ -57,6 +61,10 @@
 
           <el-tab-pane label="查询日志" name="logs">
             <ChatLogs v-if="activeTab === 'logs'" :token="token" />
+          </el-tab-pane>
+
+          <el-tab-pane label="对比日志" name="comp_logs">
+            <ComparisonLogs v-if="activeTab === 'comp_logs'" :token="token" />
           </el-tab-pane>
 
           <el-tab-pane label="提示词配置" name="prompts">
@@ -82,6 +90,8 @@ import DocumentUpload from './components/DocumentUpload.vue'
 import DocumentManagement from './components/DocumentManagement.vue'
 import KnowledgeManagement from './components/KnowledgeManagement.vue'
 import SmartChat from './components/SmartChat.vue'
+import ModelComparison from './components/ModelComparison.vue'
+import ComparisonLogs from './components/ComparisonLogs.vue'
 import ChatLogs from './components/ChatLogs.vue'
 import PromptConfig from './components/PromptConfig.vue'
 import DictManagement from './components/DictManagement.vue'
