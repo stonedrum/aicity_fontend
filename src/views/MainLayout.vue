@@ -78,6 +78,10 @@
           <el-tab-pane label="用户管理" name="users" v-if="userRole === 'sysadmin'">
             <UserManagement v-if="activeTab === 'users'" :token="token" />
           </el-tab-pane>
+
+          <el-tab-pane label="系统配置" name="sys_configs" v-if="userRole === 'sysadmin'">
+            <SystemConfig v-if="activeTab === 'sys_configs'" :token="token" />
+          </el-tab-pane>
         </el-tabs>
       </div>
     </el-main>
@@ -119,6 +123,7 @@ import ChatLogs from '../components/ChatLogs.vue'
 import PromptConfig from '../components/PromptConfig.vue'
 import DictManagement from '../components/DictManagement.vue'
 import UserManagement from '../components/UserManagement.vue'
+import SystemConfig from '../components/SystemConfig.vue'
 
 const token = ref(localStorage.getItem('token'))
 const username = ref(localStorage.getItem('username'))
