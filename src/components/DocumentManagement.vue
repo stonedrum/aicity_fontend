@@ -31,11 +31,12 @@
           {{ formatDate(row.upload_time) }}
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column label="操作" width="350" fixed="right">
         <template #default="{ row }">
           <el-button type="text" size="small" @click="viewFile(row)">查看文件</el-button>
           <el-button type="text" size="small" @click="viewClauses(row)">查看条目</el-button>
-          <el-button type="text" size="small" @click="openBatchImportRow(row)">批量导入</el-button>
+          <el-button type="text" size="small" @click="openBatchImportRow(row)">JSON 批量导入</el-button>
+          <el-button type="text" size="small" @click="openMarkdownImportRow(row)">Markdown 导入</el-button>
           <el-button type="text" size="small" @click="openEdit(row)">编辑</el-button>
           <el-button type="text" size="small" style="color: #f56c6c" @click="handleDelete(row)">删除</el-button>
         </template>
@@ -88,7 +89,7 @@
     </el-dialog>
 
     <!-- 批量导入对话框 -->
-    <el-dialog v-model="batchDialogVisible" title="批量导入条款" width="600px">
+    <el-dialog v-model="batchDialogVisible" title="JSON 批量导入条款" width="600px">
       <el-form :model="batchForm" label-width="100px">
         <el-form-item label="归属类型">
           <el-select v-model="batchForm.kb_type" placeholder="请选择类型" style="width: 100%" disabled>
@@ -116,6 +117,37 @@
       <template #footer>
         <el-button @click="batchDialogVisible = false">取消</el-button>
         <el-button type="primary" :loading="batchLoading" @click="handleBatchImport">开始导入</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- Markdown 导入对话框 -->
+    <el-dialog v-model="mdDialogVisible" title="Markdown 导入条款" width="500px">
+      <el-form label-width="100px">
+        <el-form-item label="所属文档">
+          <el-input :value="mdDocName" readonly style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="Markdown文件">
+          <el-upload
+            class="upload-demo"
+            action="#"
+            :auto-upload="false"
+            :limit="1"
+            accept=".md"
+            :on-change="handleMdFileChange"
+            :show-file-list="true"
+          >
+            <el-button type="primary" icon="Upload">选择 .md 文件</el-button>
+            <template #tip>
+              <div class="el-upload__tip">
+                系统将按二级标题(##)拆分内容，超长部分自动分段。
+              </div>
+            </template>
+          </el-upload>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="mdDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="mdLoading" @click="handleMdImport">开始导入</el-button>
       </template>
     </el-dialog>
   </div>
@@ -154,6 +186,13 @@ const batchLoading = ref(false)
 const batchForm = ref({ kb_type: '', doc_id: null, items: [] })
 const batchDocName = ref('')
 const batchSummary = ref('未选择文件')
+
+// Markdown 导入相关
+const mdDialogVisible = ref(false)
+const mdLoading = ref(false)
+const mdDocId = ref(null)
+const mdDocName = ref('')
+const mdSelectedFile = ref(null)
 
 const getKbTypeLabel = (val) => {
   const item = props.kbTypeOptions.find(i => i.value === val)
@@ -211,6 +250,42 @@ const openBatchImportRow = (row) => {
   batchDocName.value = row.filename
   batchSummary.value = '未选择文件'
   batchDialogVisible.value = true
+}
+
+const openMarkdownImportRow = (row) => {
+  mdDocId.value = row.id
+  mdDocName.value = row.filename
+  mdSelectedFile.value = null
+  mdDialogVisible.value = true
+}
+
+const handleMdFileChange = (file) => {
+  mdSelectedFile.value = file.raw
+}
+
+const handleMdImport = async () => {
+  if (!mdSelectedFile.value) {
+    ElMessage.warning('请先选择 Markdown 文件')
+    return
+  }
+  mdLoading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', mdSelectedFile.value)
+    
+    const res = await axios.post(`http://127.0.0.1:8000/documents/${mdDocId.value}/import-markdown`, formData, {
+      headers: { 
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${props.token}` 
+      }
+    })
+    ElMessage.success(`导入成功，共插入 ${res.data.inserted} 条记录`)
+    mdDialogVisible.value = false
+  } catch (err) {
+    ElMessage.error('Markdown 导入失败: ' + (err.response?.data?.detail || err.message))
+  } finally {
+    mdLoading.value = false
+  }
 }
 
 const handleBatchFileChange = (file) => {
