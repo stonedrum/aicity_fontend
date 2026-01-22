@@ -62,6 +62,18 @@
           </el-descriptions-item>
         </el-descriptions>
 
+        <el-divider>意图识别信息</el-divider>
+        <div v-if="selectedLog.intent_info" class="intent-info">
+          <el-descriptions :column="1" border size="small">
+            <el-descriptions-item label="意图识别 Prompt">
+              <pre class="log-content-pre">{{ selectedLog.intent_info.prompt }}</pre>
+            </el-descriptions-item>
+            <el-descriptions-item label="模型原始回复">{{ selectedLog.intent_info.response }}</el-descriptions-item>
+            <el-descriptions-item label="识别出的类型">{{ selectedLog.intent_info.detected_type }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+        <div v-else class="no-data">无意图识别记录（已指定类型或识别跳过）</div>
+
         <el-divider>初始 RAG 结果（Top 10）</el-divider>
         <div v-if="selectedLog.initial_rag_results && selectedLog.initial_rag_results.length > 0" class="rag-results">
           <el-table :data="selectedLog.initial_rag_results" size="small" max-height="300">
@@ -232,6 +244,16 @@ onMounted(() => {
   border-radius: 4px;
   white-space: pre-wrap;
   word-break: break-word;
+}
+.log-content-pre {
+  margin: 0;
+  padding: 10px;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: monospace;
+  font-size: 12px;
 }
 .rag-results {
   margin: 10px 0;

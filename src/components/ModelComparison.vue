@@ -185,17 +185,23 @@ const callModel = async (modelName, historyRef, loadingRef, scrollRef) => {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     
-    const assistantMsg = { role: 'assistant', content: '' }
+    const assistantMsg = { role: 'assistant', content: '思考中...' }
     historyRef.value.push(assistantMsg)
     const msgIndex = historyRef.value.length - 1
     loadingRef.value = false
 
     let totalContent = ''
+    let isFirstChunk = true
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      totalContent += chunk
+      if (isFirstChunk) {
+        totalContent = chunk
+        isFirstChunk = false
+      } else {
+        totalContent += chunk
+      }
       historyRef.value[msgIndex].content = totalContent
       await nextTick()
       await scrollToBottom(scrollRef.value)

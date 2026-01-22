@@ -133,17 +133,23 @@ const handleChat = async () => {
     const reader = response.body.getReader()
     const decoder = new TextDecoder()
     
-    const assistantMsg = { role: 'assistant', content: '' }
+    const assistantMsg = { role: 'assistant', content: '思考中...' }
     chatHistory.value.push(assistantMsg)
     const msgIndex = chatHistory.value.length - 1
     chatLoading.value = false
 
     let totalContent = ''
+    let isFirstChunk = true
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      totalContent += chunk
+      if (isFirstChunk) {
+        totalContent = chunk
+        isFirstChunk = false
+      } else {
+        totalContent += chunk
+      }
       chatHistory.value[msgIndex].content = totalContent
       await nextTick()
       await scrollToBottom()
