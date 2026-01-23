@@ -54,6 +54,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   token: String
@@ -70,7 +71,7 @@ const isKey = (row) => row.config_key.includes('api_key')
 const loadConfigs = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/configs', {
+    const res = await axios.get(`${API_BASE_URL}/configs`, {
       headers: { Authorization: `Bearer ${props.token}` }
     })
     configs.value = res.data
@@ -92,7 +93,7 @@ const cancelEdit = () => {
 
 const saveEdit = async (row) => {
   try {
-    await axios.put(`http://127.0.0.1:8000/configs/${row.config_key}`, {
+    await axios.put(`${API_BASE_URL}/configs/${row.config_key}`, {
       config_value: editForm.value.config_value
     }, {
       headers: { Authorization: `Bearer ${props.token}` }

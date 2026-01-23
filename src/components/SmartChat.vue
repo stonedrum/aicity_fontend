@@ -63,6 +63,7 @@ import { ref, nextTick } from 'vue'
 import { Loading } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
+import { API_BASE_URL } from '../api/config'
 
 const md = new MarkdownIt({
   linkify: true,
@@ -106,7 +107,7 @@ const handleChat = async () => {
   try {
     const withoutLast = chatHistory.value.slice(0, -1);
     const lastFour = withoutLast.slice(-4);
-    const response = await fetch('http://127.0.0.1:8000/chat', {
+    const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

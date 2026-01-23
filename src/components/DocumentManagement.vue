@@ -157,6 +157,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   kbTypeOptions: Array,
@@ -208,7 +209,7 @@ const formatDate = (dateStr) => {
 const loadDocuments = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/documents', {
+    const res = await axios.get(`${API_BASE_URL}/documents`, {
       params: { 
         page: page.value,
         page_size: pageSize.value,
@@ -273,7 +274,7 @@ const handleMdImport = async () => {
     const formData = new FormData()
     formData.append('file', mdSelectedFile.value)
     
-    const res = await axios.post(`http://127.0.0.1:8000/documents/${mdDocId.value}/import-markdown`, formData, {
+    const res = await axios.post(`${API_BASE_URL}/documents/${mdDocId.value}/import-markdown`, formData, {
       headers: { 
         'Content-Type': 'multipart/form-data',
         Authorization: `Bearer ${props.token}` 
@@ -334,7 +335,7 @@ const handleBatchImport = async () => {
   }
   batchLoading.value = true
   try {
-    await axios.post('http://127.0.0.1:8000/clauses/batch', batchForm.value, {
+    await axios.post(`${API_BASE_URL}/clauses/batch`, batchForm.value, {
       headers: { Authorization: `Bearer ${props.token}` }
     })
     ElMessage.success('批量导入成功')
@@ -375,7 +376,7 @@ const handleSave = async () => {
   saveLoading.value = true
   try {
     if (isEdit.value) {
-      await axios.put(`http://127.0.0.1:8000/documents/${form.value.id}`, {
+      await axios.put(`${API_BASE_URL}/documents/${form.value.id}`, {
         filename: form.value.filename,
         kb_type: form.value.kb_type
       }, {
@@ -392,7 +393,7 @@ const handleSave = async () => {
       formData.append('file', selectedFile.value)
       formData.append('kb_type', form.value.kb_type)
       
-      await axios.post('http://127.0.0.1:8000/documents', formData, {
+      await axios.post(`${API_BASE_URL}/documents`, formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${props.token}` 
@@ -429,7 +430,7 @@ const handleDelete = (row) => {
   }).then(async () => {
     try {
       // 假设后端支持 DELETE /documents/{id} 并且联级删除条目
-      await axios.delete(`http://127.0.0.1:8000/documents/${row.id}`, {
+      await axios.delete(`${API_BASE_URL}/documents/${row.id}`, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('删除成功')

@@ -111,6 +111,7 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { API_BASE_URL } from '../api/config'
 
 // Import sub-components
 import DocumentUpload from '../components/DocumentUpload.vue'
@@ -151,7 +152,7 @@ const handleViewClauses = ({ docId }) => {
 
 const loadKbTypes = async () => {
   try {
-    const res = await axios.get('http://127.0.0.1:8000/dicts/kb_type')
+    const res = await axios.get(`${API_BASE_URL}/dicts/kb_type`)
     kbTypeOptions.value = res.data
   } catch (err) {
     console.error('加载知识库类型字典失败:', err)
@@ -162,7 +163,7 @@ loadKbTypes()
 
 const handleLogin = async () => {
   try {
-    const res = await axios.post('http://127.0.0.1:8000/token', loginForm.value)
+    const res = await axios.post(`${API_BASE_URL}/token`, loginForm.value)
     token.value = res.data.access_token
     username.value = res.data.username
     userRole.value = res.data.role
@@ -202,7 +203,7 @@ const handleUpdatePassword = async () => {
     return
   }
   try {
-    await axios.put('http://127.0.0.1:8000/users/me/password', {
+    await axios.put(`${API_BASE_URL}/users/me/password`, {
       old_password: passwordForm.value.old_password,
       new_password: passwordForm.value.new_password
     }, {

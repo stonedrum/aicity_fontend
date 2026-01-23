@@ -72,6 +72,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   authHeaders: Object
@@ -93,7 +94,7 @@ const promptForm = ref({
 const loadPrompts = async () => {
   promptsLoading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/prompts', {
+    const res = await axios.get(`${API_BASE_URL}/prompts`, {
       headers: props.authHeaders
     })
     prompts.value = res.data
@@ -124,11 +125,11 @@ const savePrompt = async () => {
   saveLoading.value = true
   try {
     if (isEditingPrompt.value) {
-      await axios.put(`http://127.0.0.1:8000/prompts/${promptForm.value.id}`, promptForm.value, {
+      await axios.put(`${API_BASE_URL}/prompts/${promptForm.value.id}`, promptForm.value, {
         headers: props.authHeaders
       })
     } else {
-      await axios.post('http://127.0.0.1:8000/prompts', promptForm.value, {
+      await axios.post(`${API_BASE_URL}/prompts`, promptForm.value, {
         headers: props.authHeaders
       })
     }
@@ -145,7 +146,7 @@ const savePrompt = async () => {
 const handleDeletePrompt = async (row) => {
   if (!confirm(`确定要删除提示词 "${row.name}" 吗？`)) return
   try {
-    await axios.delete(`http://127.0.0.1:8000/prompts/${row.id}`, {
+    await axios.delete(`${API_BASE_URL}/prompts/${row.id}`, {
       headers: props.authHeaders
     })
     ElMessage.success('删除成功')

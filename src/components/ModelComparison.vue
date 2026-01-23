@@ -80,6 +80,7 @@ import { Loading, Check } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
+import { API_BASE_URL } from '../api/config'
 
 const md = new MarkdownIt({
   linkify: true,
@@ -139,7 +140,7 @@ const submitVote = async (winner) => {
     const qwenResp = qwenHistory.value[qwenHistory.value.length - 1].content
     const dsResp = deepseekHistory.value[deepseekHistory.value.length - 1].content
     
-    await axios.post('http://127.0.0.1:8000/comparison/vote', {
+    await axios.post(`${API_BASE_URL}/comparison/vote`, {
       query_content: lastQuestion.value,
       qwen_response: qwenResp,
       deepseek_response: dsResp,
@@ -164,7 +165,7 @@ const callModel = async (modelName, historyRef, loadingRef, scrollRef) => {
   await scrollToBottom(scrollRef.value)
 
   try {
-    const response = await fetch('http://127.0.0.1:8000/chat', {
+    const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

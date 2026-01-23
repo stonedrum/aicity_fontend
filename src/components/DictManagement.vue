@@ -108,6 +108,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   authHeaders: Object,
@@ -129,7 +130,7 @@ const dictSaveLoading = ref(false)
 const loadDictTypes = async () => {
   dictTypesLoading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/dict-types', {
+    const res = await axios.get(`${API_BASE_URL}/dict-types`, {
       headers: props.authHeaders
     })
     dictTypes.value = res.data
@@ -164,11 +165,11 @@ const saveDictType = async () => {
   dictSaveLoading.value = true
   try {
     if (isEditingDictType.value) {
-      await axios.put(`http://127.0.0.1:8000/dict-types/${dictTypeForm.value.id}`, dictTypeForm.value, {
+      await axios.put(`${API_BASE_URL}/dict-types/${dictTypeForm.value.id}`, dictTypeForm.value, {
         headers: props.authHeaders
       })
     } else {
-      await axios.post('http://127.0.0.1:8000/dict-types', dictTypeForm.value, {
+      await axios.post(`${API_BASE_URL}/dict-types`, dictTypeForm.value, {
         headers: props.authHeaders
       })
     }
@@ -185,7 +186,7 @@ const saveDictType = async () => {
 const handleDeleteDictType = async (row) => {
   if (!confirm(`确定要删除字典类型 "${row.description}" 吗？这会同时删除下属所有数据项！`)) return
   try {
-    await axios.delete(`http://127.0.0.1:8000/dict-types/${row.id}`, {
+    await axios.delete(`${API_BASE_URL}/dict-types/${row.id}`, {
       headers: props.authHeaders
     })
     ElMessage.success('删除成功')
@@ -212,11 +213,11 @@ const saveDictData = async () => {
   dictSaveLoading.value = true
   try {
     if (isEditingDictData.value) {
-      await axios.put(`http://127.0.0.1:8000/dict-data/${dictDataForm.value.id}`, dictDataForm.value, {
+      await axios.put(`${API_BASE_URL}/dict-data/${dictDataForm.value.id}`, dictDataForm.value, {
         headers: props.authHeaders
       })
     } else {
-      await axios.post(`http://127.0.0.1:8000/dict-data/${selectedDictType.value.id}`, dictDataForm.value, {
+      await axios.post(`${API_BASE_URL}/dict-data/${selectedDictType.value.id}`, dictDataForm.value, {
         headers: props.authHeaders
       })
     }
@@ -234,7 +235,7 @@ const saveDictData = async () => {
 const handleDeleteDictData = async (row) => {
   if (!confirm(`确定要删除数据项 "${row.label}" 吗？`)) return
   try {
-    await axios.delete(`http://127.0.0.1:8000/dict-data/${row.id}`, {
+    await axios.delete(`${API_BASE_URL}/dict-data/${row.id}`, {
       headers: props.authHeaders
     })
     ElMessage.success('删除成功')

@@ -305,6 +305,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowUp, ArrowDown } from '@element-plus/icons-vue'
+import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   kbTypeOptions: Array,
@@ -368,7 +369,7 @@ const getKbTypeLabel = (val) => {
 const loadClauses = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/clauses', {
+    const res = await axios.get(`${API_BASE_URL}/clauses`, {
       params: {
         page: page.value,
         page_size: pageSize.value,
@@ -433,7 +434,7 @@ const handleBatchEdit = async () => {
     if (batchEditFields.value.doc_id) payload.doc_id = batchEditForm.value.doc_id
     if (batchEditFields.value.is_verified) payload.is_verified = batchEditForm.value.is_verified
 
-    await axios.post('http://127.0.0.1:8000/clauses/batch-update', payload, {
+    await axios.post(`${API_BASE_URL}/clauses/batch-update`, payload, {
       headers: { Authorization: `Bearer ${props.token}` }
     })
     
@@ -536,7 +537,7 @@ const handleBatchImport = async () => {
   }
   batchLoading.value = true
   try {
-    await axios.post('http://127.0.0.1:8000/clauses/batch', batchForm.value, {
+    await axios.post(`${API_BASE_URL}/clauses/batch`, batchForm.value, {
       headers: { Authorization: `Bearer ${props.token}` }
     })
     ElMessage.success('批量导入成功')
@@ -561,11 +562,11 @@ const handleSave = async (continueAdding = false) => {
   try {
     let res
     if (isEdit.value) {
-      res = await axios.put(`http://127.0.0.1:8000/clauses/${form.value.id}`, form.value, {
+      res = await axios.put(`${API_BASE_URL}/clauses/${form.value.id}`, form.value, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
     } else {
-      res = await axios.post('http://127.0.0.1:8000/clauses', form.value, {
+      res = await axios.post(`${API_BASE_URL}/clauses`, form.value, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
     }
@@ -605,7 +606,7 @@ const handleSave = async (continueAdding = false) => {
 const handleDelete = (row) => {
   ElMessageBox.confirm('确定要删除该条款吗？', '提示', { type: 'warning' }).then(async () => {
     try {
-      await axios.delete(`http://127.0.0.1:8000/clauses/${row.id}`, {
+      await axios.delete(`${API_BASE_URL}/clauses/${row.id}`, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('删除成功')
@@ -626,7 +627,7 @@ const toggleVerify = (row) => {
     type: 'info'
   }).then(async () => {
     try {
-      await axios.put(`http://127.0.0.1:8000/clauses/${row.id}`, {
+      await axios.put(`${API_BASE_URL}/clauses/${row.id}`, {
         is_verified: targetStatus
       }, {
         headers: { Authorization: `Bearer ${props.token}` }
@@ -642,7 +643,7 @@ const toggleVerify = (row) => {
 const remoteSearchDocs = async (query, kbType = null) => {
   docsLoading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/documents', {
+    const res = await axios.get(`${API_BASE_URL}/documents`, {
       params: { 
         keyword: query || null,
         kb_type: kbType || null,

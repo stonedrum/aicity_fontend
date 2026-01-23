@@ -115,6 +115,7 @@ import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
+import { API_BASE_URL } from '../api/config'
 
 const md = new MarkdownIt({ linkify: true, breaks: true })
 const renderMarkdown = (content) => md.render(content || '')
@@ -136,7 +137,7 @@ const selectedVote = ref(null)
 const loadStats = async () => {
   statsLoading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/comparison/stats', {
+    const res = await axios.get(`${API_BASE_URL}/comparison/stats`, {
       headers: { 'Authorization': `Bearer ${props.token}` }
     })
     stats.value = res.data
@@ -150,7 +151,7 @@ const loadStats = async () => {
 const loadVotes = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/comparison/votes', {
+    const res = await axios.get(`${API_BASE_URL}/comparison/votes`, {
       params: { page: page.value, page_size: pageSize.value },
       headers: { 'Authorization': `Bearer ${props.token}` }
     })

@@ -130,6 +130,7 @@ import axios from 'axios'
 import { Search } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
+import { API_BASE_URL } from '../api/config'
 
 const md = new MarkdownIt({
   linkify: true,
@@ -170,7 +171,7 @@ const loadChatLogs = async () => {
     if (logFilterUsername.value) {
       params.username = logFilterUsername.value
     }
-    const res = await axios.get('http://127.0.0.1:8000/chat-logs', {
+    const res = await axios.get(`${API_BASE_URL}/chat-logs`, {
       params,
       headers: {
         'Authorization': `Bearer ${props.token}`

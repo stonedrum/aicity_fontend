@@ -16,7 +16,7 @@
     <el-upload
       class="upload-demo"
       drag
-      action="http://127.0.0.1:8000/upload"
+      :action="`${API_BASE_URL}/upload`"
       :headers="authHeaders"
       :data="{ kb_type: uploadKbType }"
       :on-success="onUploadSuccess"
@@ -37,6 +37,7 @@
 import { ref, computed } from 'vue'
 import { UploadFilled } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
+import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   kbTypeOptions: {

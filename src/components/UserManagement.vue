@@ -62,6 +62,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   token: String
@@ -104,7 +105,7 @@ const getRoleTagType = (role) => {
 const loadUsers = async () => {
   loading.value = true
   try {
-    const res = await axios.get('http://127.0.0.1:8000/users', {
+    const res = await axios.get(`${API_BASE_URL}/users`, {
       params: { page: page.value, page_size: pageSize.value },
       headers: { Authorization: `Bearer ${props.token}` }
     })
@@ -138,14 +139,14 @@ const openEditDialog = (row) => {
 const saveUser = async () => {
   try {
     if (isEdit.value) {
-      await axios.put(`http://127.0.0.1:8000/users/${userForm.value.id}`, {
+      await axios.put(`${API_BASE_URL}/users/${userForm.value.id}`, {
         role: userForm.value.role
       }, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('更新成功')
     } else {
-      await axios.post('http://127.0.0.1:8000/users', userForm.value, {
+      await axios.post(`${API_BASE_URL}/users`, userForm.value, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('新增成功')
@@ -162,7 +163,7 @@ const handleResetPassword = (row) => {
     type: 'warning'
   }).then(async () => {
     try {
-      await axios.post(`http://127.0.0.1:8000/users/${row.id}/reset-password`, {}, {
+      await axios.post(`${API_BASE_URL}/users/${row.id}/reset-password`, {}, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('密码重置成功')
@@ -177,7 +178,7 @@ const handleDelete = (row) => {
     type: 'error'
   }).then(async () => {
     try {
-      await axios.delete(`http://127.0.0.1:8000/users/${row.id}`, {
+      await axios.delete(`${API_BASE_URL}/users/${row.id}`, {
         headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('删除成功')
