@@ -2,7 +2,7 @@
   <div class="system-config">
     <div class="header">
       <h3>系统参数配置</h3>
-      <el-alert title="修改 LLM 相关配置后将立即生效，无需重启后端。" type="info" show-icon :closable="false" style="margin-bottom: 20px;" />
+      <el-alert title="修改 LLM 或 RAG 相关配置后将立即生效，无需重启后端。" type="info" show-icon :closable="false" style="margin-bottom: 20px;" />
     </div>
 
     <el-table :data="configs" v-loading="loading" border stripe style="width: 100%">
@@ -19,6 +19,20 @@
               <el-option label="模型 A (阿里千问)" value="qwen" />
               <el-option label="模型 B (DeepSeek)" value="deepseek" />
             </el-select>
+            <el-input-number 
+              v-else-if="['initial_rag_count', 'rerank_count'].includes(row.config_key)"
+              v-model="editForm.config_value"
+              :min="1" :max="100"
+              size="small"
+              style="width: 100%"
+            />
+            <el-input-number 
+              v-else-if="['initial_rag_threshold', 'rerank_threshold'].includes(row.config_key)"
+              v-model="editForm.config_value"
+              :min="0" :max="1" :step="0.1"
+              size="small"
+              style="width: 100%"
+            />
             <el-input 
               v-else
               v-model="editForm.config_value" 
@@ -30,6 +44,12 @@
           <span v-else>
             <template v-if="row.config_key === 'system_default_model'">
               {{ row.config_value === 'qwen' ? '模型 A (阿里千问)' : '模型 B (DeepSeek)' }}
+            </template>
+            <template v-else-if="['initial_rag_count', 'rerank_count'].includes(row.config_key)">
+              {{ row.config_value }} (条)
+            </template>
+            <template v-else-if="['initial_rag_threshold', 'rerank_threshold'].includes(row.config_key)">
+              {{ row.config_value }}
             </template>
             <template v-else>
               {{ isKey(row) ? '********' : row.config_value }}
@@ -84,7 +104,15 @@ const loadConfigs = async () => {
 
 const startEdit = (row) => {
   editingKey.value = row.config_key
-  editForm.value.config_value = row.config_value
+  const val = row.config_value
+  // 如果是数字类型的配置，转为数字供 el-input-number 使用
+  if (['initial_rag_count', 'rerank_count'].includes(row.config_key)) {
+    editForm.value.config_value = parseInt(val) || 0
+  } else if (['initial_rag_threshold', 'rerank_threshold'].includes(row.config_key)) {
+    editForm.value.config_value = parseFloat(val) || 0
+  } else {
+    editForm.value.config_value = val
+  }
 }
 
 const cancelEdit = () => {
@@ -93,8 +121,9 @@ const cancelEdit = () => {
 
 const saveEdit = async (row) => {
   try {
+    // 确保发送到后端的是字符串，因为后端 Schema 要求是 string
     await axios.put(`${API_BASE_URL}/configs/${row.config_key}`, {
-      config_value: editForm.value.config_value
+      config_value: String(editForm.value.config_value)
     }, {
       headers: { Authorization: `Bearer ${props.token}` }
     })

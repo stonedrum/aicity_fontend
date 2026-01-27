@@ -74,7 +74,7 @@
         </div>
         <div v-else class="no-data">无意图识别记录（已指定类型或识别跳过）</div>
 
-        <el-divider>初始 RAG 结果（Top 10）</el-divider>
+        <el-divider>初始 RAG 结果（Top {{ systemConfigs.initial_rag_count || 10 }}）（相似度 > {{ systemConfigs.initial_rag_threshold || 0.3 }}）</el-divider>
         <div v-if="selectedLog.initial_rag_results && selectedLog.initial_rag_results.length > 0" class="rag-results">
           <el-table :data="selectedLog.initial_rag_results" size="small" max-height="300">
             <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
@@ -89,7 +89,7 @@
         </div>
         <div v-else class="no-data">无数据</div>
 
-        <el-divider>重排结果（Top 3）</el-divider>
+        <el-divider>重排结果（Top {{ systemConfigs.rerank_count || 3 }}）（重排分 > {{ systemConfigs.rerank_threshold || 0.8 }}）</el-divider>
         <div v-if="selectedLog.reranked_results && selectedLog.reranked_results.length > 0" class="rag-results">
           <el-table :data="selectedLog.reranked_results" size="small" max-height="300">
             <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
@@ -160,6 +160,22 @@ const logTotal = ref(0)
 const logFilterUsername = ref('')
 const logDetailVisible = ref(false)
 const selectedLog = ref(null)
+const systemConfigs = ref({})
+
+const loadSystemConfigs = async () => {
+  try {
+    const res = await axios.get(`${API_BASE_URL}/configs`, {
+      headers: { 'Authorization': `Bearer ${props.token}` }
+    })
+    const configMap = {}
+    res.data.forEach(item => {
+      configMap[item.config_key] = item.config_value
+    })
+    systemConfigs.value = configMap
+  } catch (err) {
+    console.error('加载系统配置失败', err)
+  }
+}
 
 const loadChatLogs = async () => {
   logsLoading.value = true
@@ -216,6 +232,7 @@ const formatDateTime = (dateTimeStr) => {
 }
 
 onMounted(() => {
+  loadSystemConfigs()
   loadChatLogs()
 })
 </script>
