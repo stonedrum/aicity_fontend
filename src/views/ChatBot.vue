@@ -314,7 +314,7 @@
 
 <script setup>
 import { ref, onMounted, nextTick, watch } from 'vue'
-import axios from 'axios'
+import axios from '../api/request'
 import MarkdownIt from 'markdown-it'
 import { API_BASE_URL } from '../api/config'
 
@@ -363,13 +363,12 @@ const scrollToBottom = async () => {
 const loadHistory = async () => {
   if (!token.value) return
   try {
-    const res = await axios.get(`${API_BASE_URL}/chat-logs`, {
+    const res = await axios.get('/chat-logs', {
       params: { 
         page: 1, 
         page_size: 15, 
         username: username.value 
-      },
-      headers: { 'Authorization': `Bearer ${token.value}` }
+      }
     })
     historyLogs.value = res.data.items.map(log => ({
       title: log.query_content,
@@ -386,7 +385,7 @@ const loadHistory = async () => {
 
 const loadKbTypes = async () => {
   try {
-    const res = await axios.get(`${API_BASE_URL}/dicts/kb_type`)
+    const res = await axios.get('/dicts/kb_type')
     kbTypeOptions.value = res.data
   } catch (err) {
     console.error('加载字典失败', err)
@@ -397,7 +396,7 @@ const handleLogin = async () => {
   if (!loginForm.value.username || !loginForm.value.password) return
   loginLoading.value = true
   try {
-    const res = await axios.post(`${API_BASE_URL}/token`, loginForm.value)
+    const res = await axios.post('/token', loginForm.value)
     token.value = res.data.access_token
     username.value = res.data.username
     localStorage.setItem('token', token.value)
@@ -431,11 +430,9 @@ const handleUpdatePassword = async () => {
     return
   }
   try {
-    await axios.put(`${API_BASE_URL}/users/me/password`, {
+    await axios.put('/users/me/password', {
       old_password: passwordForm.value.old_password,
       new_password: passwordForm.value.new_password
-    }, {
-      headers: { Authorization: `Bearer ${token.value}` }
     })
     alert('密码修改成功，请重新登录')
     passwordDialogVisible.value = false
