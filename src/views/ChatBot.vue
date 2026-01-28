@@ -252,7 +252,7 @@
     <div v-if="!token" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm">
       <div class="w-full max-w-md p-8 rounded-2xl space-y-6 transition-colors" :class="isDarkMode ? 'glass' : 'bg-white border border-slate-200 shadow-2xl'">
         <div class="text-center">
-          <h2 class="text-2xl font-bold glow-text font-mono" :class="isDarkMode ? 'text-cyan-400' : 'text-cyan-600'">城维云 - 登录</h2>
+          <h2 class="text-2xl font-bold glow-text font-mono" :class="isDarkMode ? 'text-cyan-400' : 'text-cyan-600'">城维云</h2>
           <p class="text-slate-400 text-sm mt-2">智能市政运维专家系统</p>
         </div>
         <div class="space-y-4">
