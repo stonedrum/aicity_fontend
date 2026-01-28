@@ -24,6 +24,21 @@
           <el-tag size="small" type="info">{{ getKbTypeLabel(row.kb_type) }}</el-tag>
         </template>
       </el-table-column>
+      <el-table-column prop="region_level" label="区域范围" width="100">
+        <template #default="{ row }">
+          {{ row.region_level || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="province" label="省份" width="120">
+        <template #default="{ row }">
+          {{ row.province || '-' }}
+        </template>
+      </el-table-column>
+      <el-table-column prop="city" label="城市" width="120">
+        <template #default="{ row }">
+          {{ row.city || '-' }}
+        </template>
+      </el-table-column>
       <el-table-column prop="filename" label="文件名" min-width="250" show-overflow-tooltip />
       <el-table-column prop="uploader" label="上传人" width="120" />
       <el-table-column prop="upload_time" label="上传时间" width="180">
@@ -61,6 +76,23 @@
         <el-form-item label="知识库类型">
           <el-select v-model="form.kb_type" placeholder="请选择类型" style="width: 100%">
             <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="区域范围">
+          <el-select v-model="form.region_level" placeholder="请选择区域范围" style="width: 100%" @change="handleRegionLevelChange">
+            <el-option label="全国" value="全国" />
+            <el-option label="省级" value="省级" />
+            <el-option label="市级" value="市级" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="省份" v-if="form.region_level === '省级' || form.region_level === '市级'">
+          <el-select v-model="form.province" placeholder="请选择省份" style="width: 100%" @change="handleProvinceChange">
+            <el-option v-for="item in provinces" :key="item.id" :label="item.name" :value="item.name" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="城市" v-if="form.region_level === '市级'">
+          <el-select v-model="form.city" placeholder="请选择城市" style="width: 100%" :disabled="!form.province">
+            <el-option v-for="item in cities" :key="item.id" :label="item.name" :value="item.name" />
           </el-select>
         </el-form-item>
         <el-form-item label="文件名" v-if="isEdit">
@@ -158,9 +190,8 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import axios from '../api/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
   kbTypeOptions: Array,
@@ -181,8 +212,57 @@ const keyword = ref('')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const saveLoading = ref(false)
-const form = ref({ id: null, kb_type: '', filename: '', auto_import: false })
+const form = ref({ 
+  id: null, 
+  kb_type: '', 
+  filename: '', 
+  auto_import: false,
+  region_level: '全国',
+  province: '',
+  city: ''
+})
 const selectedFile = ref(null)
+
+// 区域数据
+const provinces = ref([])
+const cities = ref([])
+
+const loadProvinces = async () => {
+  try {
+    const res = await axios.get('/regions/provinces')
+    console.log('加载省份成功:', res.data)
+    provinces.value = res.data
+  } catch (err) {
+    console.error('加载省份失败:', err)
+  }
+}
+
+const loadCities = async (provinceName) => {
+  if (!provinceName) {
+    cities.value = []
+    return
+  }
+  const province = provinces.value.find(p => p.name === provinceName)
+  if (!province) return
+  
+  try {
+    const res = await axios.get(`/regions/${province.id}/cities`)
+    cities.value = res.data
+  } catch (err) {
+    console.error('加载城市失败:', err)
+  }
+}
+
+const handleRegionLevelChange = () => {
+  form.value.province = ''
+  form.value.city = ''
+  cities.value = []
+}
+
+const handleProvinceChange = (val) => {
+  form.value.city = ''
+  loadCities(val)
+}
 
 // 批量导入相关
 const batchDialogVisible = ref(false)
@@ -212,14 +292,13 @@ const formatDate = (dateStr) => {
 const loadDocuments = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/documents`, {
+    const res = await axios.get('/documents', {
       params: { 
         page: page.value,
         page_size: pageSize.value,
         kb_type: filterKbType.value || null,
         keyword: keyword.value || null 
-      },
-      headers: { Authorization: `Bearer ${props.token}` }
+      }
     })
     documents.value = res.data.items
     total.value = res.data.total
@@ -277,10 +356,9 @@ const handleMdImport = async () => {
     const formData = new FormData()
     formData.append('file', mdSelectedFile.value)
     
-    const res = await axios.post(`${API_BASE_URL}/documents/${mdDocId.value}/import-markdown`, formData, {
+    const res = await axios.post(`/documents/${mdDocId.value}/import-markdown`, formData, {
       headers: { 
-        'Content-Type': 'multipart/form-data',
-        Authorization: `Bearer ${props.token}` 
+        'Content-Type': 'multipart/form-data'
       }
     })
     ElMessage.success(`导入成功，共插入 ${res.data.inserted} 条记录`)
@@ -338,9 +416,7 @@ const handleBatchImport = async () => {
   }
   batchLoading.value = true
   try {
-    await axios.post(`${API_BASE_URL}/clauses/batch`, batchForm.value, {
-      headers: { Authorization: `Bearer ${props.token}` }
-    })
+    await axios.post('/clauses/batch', batchForm.value)
     ElMessage.success('批量导入成功')
     batchDialogVisible.value = false
   } catch (err) {
@@ -355,14 +431,25 @@ const handleBatchImport = async () => {
 
 const openAdd = () => {
   isEdit.value = false
-  form.value = { id: null, kb_type: props.kbTypeOptions[0]?.value || '', filename: '', auto_import: false }
+  form.value = { 
+    id: null, 
+    kb_type: props.kbTypeOptions[0]?.value || '', 
+    filename: '', 
+    auto_import: false,
+    region_level: '全国',
+    province: '',
+    city: ''
+  }
   selectedFile.value = null
   dialogVisible.value = true
 }
 
-const openEdit = (row) => {
+const openEdit = async (row) => {
   isEdit.value = true
   form.value = { ...row }
+  if (form.value.province) {
+    await loadCities(form.value.province)
+  }
   dialogVisible.value = true
 }
 
@@ -379,11 +466,12 @@ const handleSave = async () => {
   saveLoading.value = true
   try {
     if (isEdit.value) {
-      await axios.put(`${API_BASE_URL}/documents/${form.value.id}`, {
+      await axios.put(`/documents/${form.value.id}`, {
         filename: form.value.filename,
-        kb_type: form.value.kb_type
-      }, {
-        headers: { Authorization: `Bearer ${props.token}` }
+        kb_type: form.value.kb_type,
+        region_level: form.value.region_level,
+        province: form.value.province,
+        city: form.value.city
       })
       ElMessage.success('更新成功')
     } else {
@@ -396,11 +484,13 @@ const handleSave = async () => {
       formData.append('file', selectedFile.value)
       formData.append('kb_type', form.value.kb_type)
       formData.append('auto_import', form.value.auto_import)
+      formData.append('region_level', form.value.region_level || '')
+      formData.append('province', form.value.province || '')
+      formData.append('city', form.value.city || '')
       
-      const res = await axios.post(`${API_BASE_URL}/documents`, formData, {
+      const res = await axios.post('/documents', formData, {
         headers: { 
-          'Content-Type': 'multipart/form-data',
-          Authorization: `Bearer ${props.token}` 
+          'Content-Type': 'multipart/form-data'
         }
       })
       if (res.data.auto_import) {
@@ -438,9 +528,7 @@ const handleDelete = (row) => {
   }).then(async () => {
     try {
       // 假设后端支持 DELETE /documents/{id} 并且联级删除条目
-      await axios.delete(`${API_BASE_URL}/documents/${row.id}`, {
-        headers: { Authorization: `Bearer ${props.token}` }
-      })
+      await axios.delete(`/documents/${row.id}`)
       ElMessage.success('删除成功')
       loadDocuments()
     } catch (err) {
@@ -451,6 +539,7 @@ const handleDelete = (row) => {
 
 onMounted(() => {
   loadDocuments()
+  loadProvinces()
 })
 </script>
 

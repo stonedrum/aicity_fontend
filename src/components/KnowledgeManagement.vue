@@ -341,7 +341,13 @@ const docsLoading = ref(false)
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const saveLoading = ref(false)
-const form = ref({ id: null, kb_type: '', chapter_path: '', content: '', doc_id: null })
+const form = ref({ 
+  id: null, 
+  kb_type: '', 
+  chapter_path: '', 
+  content: '', 
+  doc_id: null
+})
 
 const batchDialogVisible = ref(false)
 const batchLoading = ref(false)
@@ -359,6 +365,9 @@ const batchEditForm = ref({ kb_type: '', doc_id: null, is_verified: true })
 const configDialogVisible = ref(false)
 const defaultColumns = [
   { prop: 'kb_type', label: '类型', visible: true, width: 120, fixed: 'none' },
+  { prop: 'region_level', label: '区域范围', visible: true, width: 100, fixed: 'none' },
+  { prop: 'province', label: '省份', visible: true, width: 120, fixed: 'none' },
+  { prop: 'city', label: '城市', visible: true, width: 120, fixed: 'none' },
   { prop: 'doc_name', label: '归属文档', visible: true, width: 180, fixed: 'none' },
   { prop: 'page_number', label: '页码', visible: true, width: 80, fixed: 'none' },
   { prop: 'import_method', label: '录入方式', visible: true, width: 100, fixed: 'none' },
@@ -382,7 +391,7 @@ const getKbTypeLabel = (val) => {
 const loadClauses = async () => {
   loading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/clauses`, {
+    const res = await axios.get('/clauses', {
       params: {
         page: page.value,
         page_size: pageSize.value,
@@ -390,8 +399,7 @@ const loadClauses = async () => {
         doc_id: filterDocId.value || null,
         keyword: keyword.value || null,
         is_verified: filterVerified.value !== null ? filterVerified.value : null
-      },
-      headers: { Authorization: `Bearer ${props.token}` }
+      }
     })
     clauses.value = res.data.items
     total.value = res.data.total
@@ -447,9 +455,7 @@ const handleBatchEdit = async () => {
     if (batchEditFields.value.doc_id) payload.doc_id = batchEditForm.value.doc_id
     if (batchEditFields.value.is_verified) payload.is_verified = batchEditForm.value.is_verified
 
-    await axios.post(`${API_BASE_URL}/clauses/batch-update`, payload, {
-      headers: { Authorization: `Bearer ${props.token}` }
-    })
+    await axios.post('/clauses/batch-update', payload)
     
     ElMessage.success('批量修改成功')
     batchEditVisible.value = false
@@ -469,14 +475,7 @@ const openAdd = () => {
     chapter_path: '', 
     content: '',
     page_number: null,
-    doc_id: filterDocId.value || null 
-  }
-  // 如果筛选条件里有文档，确保它在下拉选项里显示
-  if (filterDocId.value) {
-    const filterDoc = docOptions.value.find(d => d.id === filterDocId.value)
-    if (!filterDoc) {
-      // 这里的逻辑可以优化，如果当前没加载过这个文档，可能需要加载一下
-    }
+    doc_id: filterDocId.value || null
   }
   dialogVisible.value = true
 }
@@ -491,7 +490,7 @@ const openBatchImport = () => {
   batchDialogVisible.value = true
 }
 
-const openEdit = (row) => {
+const openEdit = async (row) => {
   isEdit.value = true
   form.value = { ...row }
   // 确保当前行所属文档在下拉选项里，这样即便还没搜索也能显示文件名
@@ -585,9 +584,7 @@ const handleBatchImport = async () => {
   }
   batchLoading.value = true
   try {
-    await axios.post(`${API_BASE_URL}/clauses/batch`, batchForm.value, {
-      headers: { Authorization: `Bearer ${props.token}` }
-    })
+    await axios.post('/clauses/batch', batchForm.value)
     ElMessage.success('批量导入成功')
     batchDialogVisible.value = false
     loadClauses()
@@ -610,13 +607,9 @@ const handleSave = async (continueAdding = false) => {
   try {
     let res
     if (isEdit.value) {
-      res = await axios.put(`${API_BASE_URL}/clauses/${form.value.id}`, form.value, {
-        headers: { Authorization: `Bearer ${props.token}` }
-      })
+      res = await axios.put(`/clauses/${form.value.id}`, form.value)
     } else {
-      res = await axios.post(`${API_BASE_URL}/clauses`, form.value, {
-        headers: { Authorization: `Bearer ${props.token}` }
-      })
+      res = await axios.post('/clauses', form.value)
     }
     ElMessage.success('保存成功')
     
@@ -638,7 +631,7 @@ const handleSave = async (continueAdding = false) => {
         chapter_path: '', 
         content: '', 
         page_number: null,
-        doc_id: savedDocId 
+        doc_id: savedDocId
       }
     } else {
       dialogVisible.value = false
@@ -655,9 +648,7 @@ const handleSave = async (continueAdding = false) => {
 const handleDelete = (row) => {
   ElMessageBox.confirm('确定要删除该条款吗？', '提示', { type: 'warning' }).then(async () => {
     try {
-      await axios.delete(`${API_BASE_URL}/clauses/${row.id}`, {
-        headers: { Authorization: `Bearer ${props.token}` }
-      })
+      await axios.delete(`/clauses/${row.id}`)
       ElMessage.success('删除成功')
       loadClauses()
     } catch (err) {
@@ -676,10 +667,8 @@ const toggleVerify = (row) => {
     type: 'info'
   }).then(async () => {
     try {
-      await axios.put(`${API_BASE_URL}/clauses/${row.id}`, {
+      await axios.put(`/clauses/${row.id}`, {
         is_verified: targetStatus
-      }, {
-        headers: { Authorization: `Bearer ${props.token}` }
       })
       ElMessage.success('设置成功')
       loadClauses()
@@ -692,14 +681,13 @@ const toggleVerify = (row) => {
 const remoteSearchDocs = async (query, kbType = null) => {
   docsLoading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/documents`, {
+    const res = await axios.get('/documents', {
       params: { 
         keyword: query || null,
         kb_type: kbType || null,
         page: 1,
         page_size: 100 // 搜索框建议返回多一点
-      },
-      headers: { Authorization: `Bearer ${props.token}` }
+      }
     })
     
     // 后端现在返回的是分页对象 { items: [], total: ... }
