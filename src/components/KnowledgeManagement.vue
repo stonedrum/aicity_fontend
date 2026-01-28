@@ -88,6 +88,9 @@
           <template #default="{ row }" v-else-if="col.prop === 'doc_name'">
             <span>{{ row.doc_name || '-' }}</span>
           </template>
+          <template #default="{ row }" v-else-if="col.prop === 'page_number'">
+            <span>{{ row.page_number || '未设置' }}</span>
+          </template>
         </el-table-column>
       </template>
 
@@ -142,6 +145,9 @@
         </el-form-item>
         <el-form-item label="章节路径">
           <el-input v-model="form.chapter_path" placeholder="例如：第一章 > 1.1节" />
+        </el-form-item>
+        <el-form-item label="所在页码">
+          <el-input-number v-model="form.page_number" :min="1" placeholder="页码" style="width: 100%" />
         </el-form-item>
         <el-form-item label="内容">
           <el-input v-model="form.content" type="textarea" :rows="10" placeholder="条款正文内容（支持Markdown）" />
@@ -351,6 +357,7 @@ const configDialogVisible = ref(false)
 const defaultColumns = [
   { prop: 'kb_type', label: '类型', visible: true, width: 120, fixed: 'none' },
   { prop: 'doc_name', label: '归属文档', visible: true, width: 180, fixed: 'none' },
+  { prop: 'page_number', label: '页码', visible: true, width: 80, fixed: 'none' },
   { prop: 'chapter_path', label: '章节路径', visible: true, width: 200, fixed: 'none' },
   { prop: 'content', label: '条款内容', visible: true, width: null, fixed: 'none' },
   { prop: 'is_verified', label: '校验状态', visible: true, width: 200, fixed: 'none' },
@@ -455,6 +462,7 @@ const openAdd = () => {
     kb_type: props.kbTypeOptions[0]?.value || '', 
     chapter_path: '', 
     content: '',
+    page_number: null,
     doc_id: filterDocId.value || null 
   }
   // 如果筛选条件里有文档，确保它在下拉选项里显示
@@ -505,10 +513,44 @@ const handleBatchFileChange = (file) => {
       }
 
       const items = data
-        .map(item => ({
-          chapter_path: item['章节标题'] || item.chapter_path || '',
-          content: item['内容'] || item.content || ''
-        }))
+        .map((item, index) => {
+          // 优先尝试 "页码"，然后是 "page_number"，最后是 "page"
+          let rawPage = item['页码']
+          if (rawPage === undefined || rawPage === null || rawPage === '') {
+            rawPage = item.page_number
+          }
+          if (rawPage === undefined || rawPage === null || rawPage === '') {
+            rawPage = item.page
+          }
+          
+          let parsedPage = null
+          if (rawPage !== undefined && rawPage !== null && rawPage !== '') {
+            // 如果已经是数字，直接取整
+            if (typeof rawPage === 'number') {
+              parsedPage = Math.floor(rawPage)
+            } else {
+              // 如果是字符串，尝试提取其中的数字（如 "第23页" -> 23）
+              const match = String(rawPage).match(/\d+/)
+              if (match) {
+                parsedPage = parseInt(match[0])
+              }
+            }
+          }
+
+          if (index < 3) {
+            console.log(`[Batch Import Debug] Item ${index}:`, {
+              original_page: rawPage,
+              parsed_page: parsedPage,
+              chapter: item['章节标题'] || item.chapter_path
+            })
+          }
+
+          return {
+            chapter_path: item['章节标题'] || item['章节'] || item.chapter_path || '',
+            content: item['内容'] || item['正文'] || item.content || '',
+            page_number: parsedPage
+          }
+        })
         .filter(item => item.chapter_path && item.content)
 
       batchForm.value.items = items
@@ -589,6 +631,7 @@ const handleSave = async (continueAdding = false) => {
         kb_type: savedKbType, 
         chapter_path: '', 
         content: '', 
+        page_number: null,
         doc_id: savedDocId 
       }
     } else {

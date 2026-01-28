@@ -78,6 +78,7 @@
         <div v-if="selectedLog.initial_rag_results && selectedLog.initial_rag_results.length > 0" class="rag-results">
           <el-table :data="selectedLog.initial_rag_results" size="small" max-height="300">
             <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
+            <el-table-column prop="page_number" label="页码" width="80" />
             <el-table-column prop="chapter_path" label="章节路径" width="200" show-overflow-tooltip />
             <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
             <el-table-column prop="score" label="相似度" width="100">
@@ -93,6 +94,7 @@
         <div v-if="selectedLog.reranked_results && selectedLog.reranked_results.length > 0" class="rag-results">
           <el-table :data="selectedLog.reranked_results" size="small" max-height="300">
             <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
+            <el-table-column prop="page_number" label="页码" width="80" />
             <el-table-column prop="chapter_path" label="章节路径" width="200" show-overflow-tooltip />
             <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
             <el-table-column prop="rerank_score" label="重排分数" width="100">
