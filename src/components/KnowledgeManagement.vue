@@ -91,6 +91,9 @@
           <template #default="{ row }" v-else-if="col.prop === 'page_number'">
             <span>{{ row.page_number || '未设置' }}</span>
           </template>
+          <template #default="{ row }" v-else-if="col.prop === 'created_at'">
+            <span>{{ row.created_at ? new Date(row.created_at).toLocaleString() : '-' }}</span>
+          </template>
         </el-table-column>
       </template>
 
@@ -358,6 +361,9 @@ const defaultColumns = [
   { prop: 'kb_type', label: '类型', visible: true, width: 120, fixed: 'none' },
   { prop: 'doc_name', label: '归属文档', visible: true, width: 180, fixed: 'none' },
   { prop: 'page_number', label: '页码', visible: true, width: 80, fixed: 'none' },
+  { prop: 'import_method', label: '录入方式', visible: true, width: 100, fixed: 'none' },
+  { prop: 'creator', label: '录入人', visible: true, width: 100, fixed: 'none' },
+  { prop: 'created_at', label: '创建时间', visible: true, width: 160, fixed: 'none' },
   { prop: 'chapter_path', label: '章节路径', visible: true, width: 200, fixed: 'none' },
   { prop: 'content', label: '条款内容', visible: true, width: null, fixed: 'none' },
   { prop: 'is_verified', label: '校验状态', visible: true, width: 200, fixed: 'none' },

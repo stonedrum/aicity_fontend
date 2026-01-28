@@ -39,7 +39,7 @@
             <ModelComparison :kbTypeOptions="kbTypeOptions" :token="token" :logout="logout" />
           </el-tab-pane>
 
-          <el-tab-pane label="文档管理" name="documents">
+          <el-tab-pane label="文档管理" name="documents" v-if="['sysadmin', 'admin', 'editor'].includes(userRole)">
             <DocumentManagement 
               :kbTypeOptions="kbTypeOptions" 
               :token="token" 
@@ -47,7 +47,7 @@
             />
           </el-tab-pane>
 
-          <el-tab-pane label="知识库管理" name="search">
+          <el-tab-pane label="知识库管理" name="search" v-if="['sysadmin', 'admin', 'editor'].includes(userRole)">
             <KnowledgeManagement 
               :kbTypeOptions="kbTypeOptions" 
               :token="token" 
@@ -55,15 +55,11 @@
             />
           </el-tab-pane>
 
-          <el-tab-pane label="文档上传" name="upload">
-            <DocumentUpload :kbTypeOptions="kbTypeOptions" :authHeaders="authHeaders" />
-          </el-tab-pane>
-
-          <el-tab-pane label="查询日志" name="logs">
+          <el-tab-pane label="查询日志" name="logs" v-if="['sysadmin', 'admin'].includes(userRole)">
             <ChatLogs v-if="activeTab === 'logs'" :token="token" />
           </el-tab-pane>
 
-          <el-tab-pane label="对比日志" name="comp_logs">
+          <el-tab-pane label="对比日志" name="comp_logs" v-if="['sysadmin', 'admin'].includes(userRole)">
             <ComparisonLogs v-if="activeTab === 'comp_logs'" :token="token" />
           </el-tab-pane>
 
@@ -114,7 +110,6 @@ import { ElMessage } from 'element-plus'
 import { API_BASE_URL } from '../api/config'
 
 // Import sub-components
-import DocumentUpload from '../components/DocumentUpload.vue'
 import DocumentManagement from '../components/DocumentManagement.vue'
 import KnowledgeManagement from '../components/KnowledgeManagement.vue'
 import SmartChat from '../components/SmartChat.vue'

@@ -43,6 +43,7 @@
           <el-select v-model="userForm.role" placeholder="请选择角色" style="width: 100%">
             <el-option label="系统管理员" value="sysadmin" />
             <el-option label="管理员" value="admin" />
+            <el-option label="信息录入员" value="editor" />
             <el-option label="普通用户" value="user" />
           </el-select>
         </el-form-item>
@@ -88,6 +89,7 @@ const getRoleLabel = (role) => {
   const map = {
     sysadmin: '系统管理员',
     admin: '管理员',
+    editor: '信息录入员',
     user: '普通用户'
   }
   return map[role] || role
@@ -97,6 +99,7 @@ const getRoleTagType = (role) => {
   const map = {
     sysadmin: 'danger',
     admin: 'warning',
+    editor: 'success',
     user: 'info'
   }
   return map[role] || ''
