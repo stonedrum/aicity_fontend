@@ -76,10 +76,13 @@
             :show-file-list="true"
           >
             <el-button type="primary">选择 PDF 文件</el-button>
-            <template #tip>
-              <div class="el-upload__tip">仅上传文件，不进行知识条目自动拆分</div>
-            </template>
           </el-upload>
+        </el-form-item>
+        <el-form-item label="自动导入" v-if="!isEdit">
+          <el-checkbox v-model="form.auto_import">自动解析并导入知识条目</el-checkbox>
+          <div class="el-upload__tip" style="line-height: 1.4; color: #909399; margin-top: 5px;">
+            开启后，系统将自动从 PDF 中提取内容并按页拆分为知识条目。
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -178,7 +181,7 @@ const keyword = ref('')
 const dialogVisible = ref(false)
 const isEdit = ref(false)
 const saveLoading = ref(false)
-const form = ref({ id: null, kb_type: '', filename: '' })
+const form = ref({ id: null, kb_type: '', filename: '', auto_import: false })
 const selectedFile = ref(null)
 
 // 批量导入相关
@@ -352,7 +355,7 @@ const handleBatchImport = async () => {
 
 const openAdd = () => {
   isEdit.value = false
-  form.value = { id: null, kb_type: props.kbTypeOptions[0]?.value || '', filename: '' }
+  form.value = { id: null, kb_type: props.kbTypeOptions[0]?.value || '', filename: '', auto_import: false }
   selectedFile.value = null
   dialogVisible.value = true
 }
@@ -392,14 +395,19 @@ const handleSave = async () => {
       const formData = new FormData()
       formData.append('file', selectedFile.value)
       formData.append('kb_type', form.value.kb_type)
+      formData.append('auto_import', form.value.auto_import)
       
-      await axios.post(`${API_BASE_URL}/documents`, formData, {
+      const res = await axios.post(`${API_BASE_URL}/documents`, formData, {
         headers: { 
           'Content-Type': 'multipart/form-data',
           Authorization: `Bearer ${props.token}` 
         }
       })
-      ElMessage.success('上传成功')
+      if (res.data.auto_import) {
+        ElMessage.success(`上传并自动导入成功，共解析 ${res.data.inserted_clauses} 条知识条目`)
+      } else {
+        ElMessage.success('上传成功')
+      }
     }
     dialogVisible.value = false
     loadDocuments()
