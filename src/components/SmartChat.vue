@@ -14,7 +14,7 @@
         </el-form-item>
       </el-form>
     </div>
-    <div class="chat-messages" ref="chatScroll">
+    <div class="chat-messages" ref="chatScroll" @click="handleMessageClick">
       <div v-for="(msg, index) in chatHistory" :key="index" :class="['message-item', msg.role]">
         <div class="avatar" v-if="msg.role === 'assistant'">
           <svg viewBox="0 0 100 100" width="40" height="40">
@@ -41,7 +41,7 @@
         <div class="content-bubble assistant">思考中...</div>
       </div>
     </div>
-    
+
     <div class="chat-input">
       <el-input
         v-model="chatInput"
@@ -55,12 +55,46 @@
         <el-button type="primary" :loading="chatLoading" @click="handleChat">发送</el-button>
       </div>
     </div>
+
+    <!-- PDF 预览对话框 -->
+    <el-dialog
+      v-model="pdfDialogVisible"
+      :fullscreen="isMaximized"
+      :width="isMaximized ? '100%' : '80%'"
+      destroy-on-close
+      class="pdf-preview-dialog"
+      :show-close="false"
+      align-center
+    >
+      <template #header="{ close, titleId, titleClass }">
+        <div class="custom-dialog-header">
+          <span :id="titleId" :class="titleClass">{{ pdfTitle }}</span>
+          <div class="header-actions">
+            <el-button link @click="toggleMaximize">
+              <el-icon><FullScreen v-if="!isMaximized" /><Rank v-else /></el-icon>
+            </el-button>
+            <el-button link @click="pdfDialogVisible = false">
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </template>
+      <div class="pdf-container">
+        <iframe
+          v-if="pdfDialogVisible"
+          :src="currentPdfUrl"
+          width="100%"
+          height="100%"
+          frameborder="0"
+        ></iframe>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick } from 'vue'
-import { Loading } from '@element-plus/icons-vue'
+import { ref, nextTick, onMounted, onUnmounted, watch } from 'vue'
+import { Loading, FullScreen, Rank, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import { API_BASE_URL } from '../api/config'
@@ -68,6 +102,47 @@ import { API_BASE_URL } from '../api/config'
 const md = new MarkdownIt({
   linkify: true,
   breaks: true
+})
+
+// PDF 预览相关
+const pdfDialogVisible = ref(false)
+const currentPdfUrl = ref('')
+const isMaximized = ref(false)
+const pdfTitle = ref('文件预览')
+
+const handleMessageClick = (event) => {
+  const link = event.target.closest('a')
+  if (link) {
+    const url = link.href
+    if (url.toLowerCase().includes('.pdf')) {
+      event.preventDefault()
+      openPdfPreview(url, link.innerText)
+    }
+  }
+}
+
+const openPdfPreview = (url, title) => {
+  // 强制刷新 iframe，处理 hash 变化可能不触发跳转的问题
+  if (pdfDialogVisible.value && currentPdfUrl.value === url) {
+    currentPdfUrl.value = ''
+    nextTick(() => {
+      currentPdfUrl.value = url
+    })
+  } else {
+    currentPdfUrl.value = url
+  }
+  pdfTitle.value = title || '文件预览'
+  pdfDialogVisible.value = true
+}
+
+const toggleMaximize = () => {
+  isMaximized.value = !isMaximized.value
+}
+
+watch(() => pdfDialogVisible.value, (val) => {
+  if (!val) {
+    isMaximized.value = false
+  }
 })
 
 const renderMarkdown = (content) => md.render(content)
@@ -257,5 +332,34 @@ const handleChat = async () => {
 .chat-messages::-webkit-scrollbar-thumb {
   background: #dcdfe6;
   border-radius: 3px;
+}
+
+/* PDF 预览对话框样式 */
+.custom-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-right: 20px;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+.pdf-container {
+  height: 80vh;
+  width: 100%;
+  background-color: #f0f2f5;
+}
+.pdf-preview-dialog.is-fullscreen .pdf-container {
+  height: calc(100vh - 60px);
+}
+:deep(.pdf-preview-dialog .el-dialog__body) {
+  padding: 0;
+  height: 100%;
+}
+:deep(.pdf-preview-dialog .el-dialog__header) {
+  margin-right: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid #eee;
 }
 </style>

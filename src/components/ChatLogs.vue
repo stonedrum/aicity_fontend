@@ -77,7 +77,13 @@
         <el-divider>初始 RAG 结果（Top {{ systemConfigs.initial_rag_count || 10 }}）（相似度 > {{ systemConfigs.initial_rag_threshold || 0.3 }}）</el-divider>
         <div v-if="selectedLog.initial_rag_results && selectedLog.initial_rag_results.length > 0" class="rag-results">
           <el-table :data="selectedLog.initial_rag_results" size="small" max-height="300">
-            <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
+            <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-link type="primary" @click="openPdfPreview(row.doc_id, row.page_number, row.doc_name)">
+                  {{ row.doc_name }}
+                </el-link>
+              </template>
+            </el-table-column>
             <el-table-column prop="page_number" label="页码" width="80" />
             <el-table-column prop="chapter_path" label="章节路径" width="200" show-overflow-tooltip />
             <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
@@ -93,7 +99,13 @@
         <el-divider>重排结果（Top {{ systemConfigs.rerank_count || 3 }}）（重排分 > {{ systemConfigs.rerank_threshold || 0.8 }}）</el-divider>
         <div v-if="selectedLog.reranked_results && selectedLog.reranked_results.length > 0" class="rag-results">
           <el-table :data="selectedLog.reranked_results" size="small" max-height="300">
-            <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip />
+            <el-table-column prop="doc_name" label="文档名称" width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-link type="primary" @click="openPdfPreview(row.doc_id, row.page_number, row.doc_name)">
+                  {{ row.doc_name }}
+                </el-link>
+              </template>
+            </el-table-column>
             <el-table-column prop="page_number" label="页码" width="80" />
             <el-table-column prop="chapter_path" label="章节路径" width="200" show-overflow-tooltip />
             <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
@@ -123,13 +135,48 @@
         </div>
       </div>
     </el-dialog>
+
+    <!-- PDF 预览对话框 -->
+    <el-dialog
+      v-model="pdfDialogVisible"
+      :fullscreen="isMaximized"
+      :width="isMaximized ? '100%' : '80%'"
+      destroy-on-close
+      class="pdf-preview-dialog"
+      :show-close="false"
+      append-to-body
+      align-center
+    >
+      <template #header="{ close, titleId, titleClass }">
+        <div class="custom-dialog-header">
+          <span :id="titleId" :class="titleClass">{{ pdfTitle }}</span>
+          <div class="header-actions">
+            <el-button link @click="toggleMaximize">
+              <el-icon><FullScreen v-if="!isMaximized" /><Rank v-else /></el-icon>
+            </el-button>
+            <el-button link @click="pdfDialogVisible = false">
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </template>
+      <div class="pdf-container">
+        <iframe
+          v-if="pdfDialogVisible"
+          :src="currentPdfUrl"
+          width="100%"
+          height="100%"
+          frameborder="0"
+        ></iframe>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import axios from 'axios'
-import { Search } from '@element-plus/icons-vue'
+import { Search, FullScreen, Rank, Close } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import { API_BASE_URL } from '../api/config'
@@ -163,6 +210,47 @@ const logFilterUsername = ref('')
 const logDetailVisible = ref(false)
 const selectedLog = ref(null)
 const systemConfigs = ref({})
+
+// PDF 预览相关
+const pdfDialogVisible = ref(false)
+const currentPdfUrl = ref('')
+const isMaximized = ref(false)
+const pdfTitle = ref('文件预览')
+
+const openPdfPreview = async (docId, pageNumber, docName) => {
+  try {
+    // 获取文档详情以获取 OSS URL
+    const res = await axios.get(`${API_BASE_URL}/documents`, {
+      params: { keyword: docName },
+      headers: { Authorization: `Bearer ${props.token}` }
+    })
+    const doc = res.data.items.find(d => d.filename === docName)
+    if (doc && doc.file_url) {
+      let url = doc.file_url
+      if (pageNumber) {
+        url += `#page=${pageNumber}`
+      }
+      currentPdfUrl.value = url
+      pdfTitle.value = docName + (pageNumber ? ` (第 ${pageNumber} 页)` : '')
+      pdfDialogVisible.value = true
+    } else {
+      ElMessage.warning('未能获取到文档链接')
+    }
+  } catch (err) {
+    console.error('获取文档详情失败', err)
+    ElMessage.error('无法预览文档')
+  }
+}
+
+const toggleMaximize = () => {
+  isMaximized.value = !isMaximized.value
+}
+
+watch(() => pdfDialogVisible.value, (val) => {
+  if (!val) {
+    isMaximized.value = false
+  }
+})
 
 const loadSystemConfigs = async () => {
   try {
@@ -325,5 +413,34 @@ onMounted(() => {
 }
 .msg-item.system .msg-body {
   color: #909399;
+}
+
+/* PDF 预览对话框样式 */
+.custom-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-right: 20px;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+.pdf-container {
+  height: 80vh;
+  width: 100%;
+  background-color: #f0f2f5;
+}
+.pdf-preview-dialog.is-fullscreen .pdf-container {
+  height: calc(100vh - 60px);
+}
+:deep(.pdf-preview-dialog .el-dialog__body) {
+  padding: 0;
+  height: 100%;
+}
+:deep(.pdf-preview-dialog .el-dialog__header) {
+  margin-right: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid #eee;
 }
 </style>

@@ -169,7 +169,7 @@
         </header>
 
         <!-- Messages -->
-        <div class="flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar" ref="chatScroll">
+        <div class="flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar" ref="chatScroll" @click="handleMessageClick">
           <div v-for="(msg, index) in chatHistory" :key="index" :class="['flex items-start gap-4', msg.role === 'user' ? 'flex-row-reverse' : '']">
             <!-- Avatar -->
             <div v-if="msg.role === 'assistant'" class="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shrink-0" :class="isDarkMode ? 'glow-border' : ''">
@@ -309,6 +309,56 @@
         </div>
       </div>
     </div>
+
+    <!-- PDF 预览对话框 (适配 ChatBot 风格) -->
+    <div v-if="pdfDialogVisible" class="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-0 md:p-6 transition-all duration-300">
+      <div 
+        :class="[
+          isDarkMode ? 'glass border-slate-700' : 'bg-white border-slate-200 shadow-2xl',
+          isMaximized ? 'w-full h-full' : 'w-full max-w-6xl h-full md:h-[85vh] rounded-none md:rounded-2xl',
+          'flex flex-col overflow-hidden transition-all duration-300 relative'
+        ]"
+      >
+        <!-- Header -->
+        <div class="flex items-center justify-between p-4 border-b shrink-0" :class="isDarkMode ? 'border-slate-700/50 bg-slate-900/60' : 'border-slate-100 bg-slate-50/50'">
+          <div class="flex items-center gap-3">
+            <div class="p-2 rounded-lg bg-cyan-500/10 text-cyan-500">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+            </div>
+            <div class="flex flex-col">
+              <span class="text-sm font-bold tracking-tight truncate max-w-[200px] md:max-w-md" :class="isDarkMode ? 'text-slate-100' : 'text-slate-800'">{{ pdfTitle }}</span>
+              <span class="text-[10px] uppercase tracking-wider text-slate-500 font-mono">Document Preview</span>
+            </div>
+          </div>
+          <div class="flex items-center gap-1 md:gap-2">
+            <button 
+              @click="toggleMaximize" 
+              class="p-2 rounded-xl transition-all hover:scale-105 active:scale-95" 
+              :class="isDarkMode ? 'text-slate-400 hover:text-cyan-400 hover:bg-slate-800/50' : 'text-slate-400 hover:text-cyan-600 hover:bg-slate-100'"
+              :title="isMaximized ? '还原' : '最大化'"
+            >
+              <svg v-if="!isMaximized" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
+              <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 3v5H3M16 3v5h5M3 16h5v5M21 16h-5v5"></path></svg>
+            </button>
+            <button 
+              @click="pdfDialogVisible = false" 
+              class="p-2 rounded-xl transition-all hover:scale-105 active:scale-95" 
+              :class="isDarkMode ? 'text-slate-400 hover:text-red-400 hover:bg-red-400/10' : 'text-slate-400 hover:text-red-500 hover:bg-red-50'"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+        </div>
+        <!-- Body -->
+        <div class="flex-1 bg-slate-950/20 relative">
+          <iframe
+            v-if="pdfDialogVisible"
+            :src="currentPdfUrl"
+            class="w-full h-full border-none"
+          ></iframe>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -342,6 +392,47 @@ const mobileMenuVisible = ref(false)
 const chatKbType = ref('')
 const kbTypeOptions = ref([])
 const historyLogs = ref([])
+
+// PDF 预览相关
+const pdfDialogVisible = ref(false)
+const currentPdfUrl = ref('')
+const isMaximized = ref(false)
+const pdfTitle = ref('文件预览')
+
+const handleMessageClick = (event) => {
+  const link = event.target.closest('a')
+  if (link) {
+    const url = link.href
+    if (url.toLowerCase().includes('.pdf')) {
+      event.preventDefault()
+      openPdfPreview(url, link.innerText)
+    }
+  }
+}
+
+const openPdfPreview = (url, title) => {
+  // 强制刷新 iframe，处理 hash 变化可能不触发跳转的问题
+  if (pdfDialogVisible.value && currentPdfUrl.value === url) {
+    currentPdfUrl.value = ''
+    nextTick(() => {
+      currentPdfUrl.value = url
+    })
+  } else {
+    currentPdfUrl.value = url
+  }
+  pdfTitle.value = title || '文件预览'
+  pdfDialogVisible.value = true
+}
+
+const toggleMaximize = () => {
+  isMaximized.value = !isMaximized.value
+}
+
+watch(pdfDialogVisible, (val) => {
+  if (!val) {
+    isMaximized.value = false
+  }
+})
 
 const loginForm = ref({ username: '', password: '' })
 const loginLoading = ref(false)

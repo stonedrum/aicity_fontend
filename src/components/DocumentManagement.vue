@@ -191,13 +191,48 @@
         <el-button type="primary" :loading="mdLoading" @click="handleMdImport">开始导入</el-button>
       </template>
     </el-dialog>
+
+    <!-- PDF 预览对话框 -->
+    <el-dialog
+      v-model="pdfDialogVisible"
+      :fullscreen="isMaximized"
+      :width="isMaximized ? '100%' : '80%'"
+      destroy-on-close
+      class="pdf-preview-dialog"
+      :show-close="false"
+      align-center
+    >
+      <template #header="{ close, titleId, titleClass }">
+        <div class="custom-dialog-header">
+          <span :id="titleId" :class="titleClass">{{ pdfTitle }}</span>
+          <div class="header-actions">
+            <el-button link @click="toggleMaximize">
+              <el-icon><FullScreen v-if="!isMaximized" /><Rank v-else /></el-icon>
+            </el-button>
+            <el-button link @click="pdfDialogVisible = false">
+              <el-icon><Close /></el-icon>
+            </el-button>
+          </div>
+        </div>
+      </template>
+      <div class="pdf-container">
+        <iframe
+          v-if="pdfDialogVisible"
+          :src="currentPdfUrl"
+          width="100%"
+          height="100%"
+          frameborder="0"
+        ></iframe>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import axios from '../api/request'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { FullScreen, Rank, Close } from '@element-plus/icons-vue'
 
 const props = defineProps({
   kbTypeOptions: Array,
@@ -242,6 +277,28 @@ const form = ref({
   city: ''
 })
 const selectedFile = ref(null)
+
+// PDF 预览相关
+const pdfDialogVisible = ref(false)
+const currentPdfUrl = ref('')
+const isMaximized = ref(false)
+const pdfTitle = ref('文件预览')
+
+const openPdfPreview = (url, title) => {
+  currentPdfUrl.value = url
+  pdfTitle.value = title || '文件预览'
+  pdfDialogVisible.value = true
+}
+
+const toggleMaximize = () => {
+  isMaximized.value = !isMaximized.value
+}
+
+watch(() => pdfDialogVisible.value, (val) => {
+  if (!val) {
+    isMaximized.value = false
+  }
+})
 
 // 区域数据
 const provinces = ref([])
@@ -531,7 +588,7 @@ const handleSave = async () => {
 
 const viewFile = (row) => {
   if (row.file_url) {
-    window.open(row.file_url, '_blank')
+    openPdfPreview(row.file_url, row.filename)
   } else {
     ElMessage.warning('文件链接不存在')
   }
@@ -576,5 +633,34 @@ onMounted(() => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+
+/* PDF 预览对话框样式 */
+.custom-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-right: 20px;
+}
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+.pdf-container {
+  height: 80vh;
+  width: 100%;
+  background-color: #f0f2f5;
+}
+.pdf-preview-dialog.is-fullscreen .pdf-container {
+  height: calc(100vh - 60px);
+}
+:deep(.pdf-preview-dialog .el-dialog__body) {
+  padding: 0;
+  height: 100%;
+}
+:deep(.pdf-preview-dialog .el-dialog__header) {
+  margin-right: 0;
+  padding: 10px 20px;
+  border-bottom: 1px solid #eee;
 }
 </style>
