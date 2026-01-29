@@ -29,6 +29,12 @@
             />
           </el-select>
         </el-form-item>
+        <el-form-item label="创建人" v-if="['sysadmin', 'admin'].includes(userRole)">
+          <el-select v-model="filterCreator" placeholder="全部创建人" clearable style="width: 150px;" @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option v-for="username in userOptions" :key="username" :label="username" :value="username" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="关键词">
           <el-input v-model="keyword" placeholder="搜索内容或路径..." clearable @keyup.enter="handleSearch" style="width: 250px;" />
         </el-form-item>
@@ -118,14 +124,14 @@
     </div>
 
     <!-- 新增/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑条款' : '新增条款'" width="600px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="归属类型">
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑条款' : '新增条款'" width="66.6%" class="custom-dialog">
+      <el-form :model="form" label-width="100px" class="dialog-form">
+        <el-form-item label="归属类型" required>
           <el-select v-model="form.kb_type" placeholder="请选择类型" style="width: 100%">
             <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="所属文档">
+        <el-form-item label="所属文档" required>
           <el-select
             v-model="form.doc_id"
             filterable
@@ -146,19 +152,19 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="章节路径">
+        <el-form-item label="章节路径" required>
           <el-input v-model="form.chapter_path" placeholder="例如：第一章 > 1.1节" />
         </el-form-item>
         <el-form-item label="所在页码">
           <el-input-number v-model="form.page_number" :min="1" placeholder="页码" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="内容">
-          <el-input v-model="form.content" type="textarea" :rows="10" placeholder="条款正文内容（支持Markdown）" />
+        <el-form-item label="内容" required>
+          <el-input v-model="form.content" type="textarea" :rows="15" placeholder="条款正文内容（支持Markdown）" />
         </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button v-if="!isEdit" type="success" @click="handleSave(true)" :loading="saveLoading">新增并记录</el-button>
+        <el-button v-if="!isEdit" type="success" @click="handleSave(true)" :loading="saveLoading">保存并继续</el-button>
         <el-button type="primary" @click="handleSave(false)" :loading="saveLoading">保存</el-button>
       </template>
     </el-dialog>
@@ -166,12 +172,12 @@
     <!-- 批量导入对话框 -->
     <el-dialog v-model="batchDialogVisible" title="批量导入条款" width="600px">
       <el-form :model="batchForm" label-width="100px">
-        <el-form-item label="归属类型">
+        <el-form-item label="归属类型" required>
           <el-select v-model="batchForm.kb_type" placeholder="请选择类型" style="width: 100%">
             <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="所属文档">
+        <el-form-item label="所属文档" required>
           <el-select
             v-model="batchForm.doc_id"
             filterable
@@ -334,6 +340,20 @@ const filterType = ref('')
 const keyword = ref('')
 const filterVerified = ref(null)
 const filterDocId = ref(null)
+const filterCreator = ref('')
+
+const userRole = ref(localStorage.getItem('role'))
+const userOptions = ref([])
+
+const loadUserOptions = async () => {
+  if (!['sysadmin', 'admin'].includes(userRole.value)) return
+  try {
+    const res = await axios.get('/usernames')
+    userOptions.value = res.data
+  } catch (err) {
+    console.error('加载用户列表失败:', err)
+  }
+}
 
 const docOptions = ref([])
 const docsLoading = ref(false)
@@ -397,6 +417,7 @@ const loadClauses = async () => {
         page_size: pageSize.value,
         kb_type: filterType.value || null,
         doc_id: filterDocId.value || null,
+        creator: filterCreator.value || null,
         keyword: keyword.value || null,
         is_verified: filterVerified.value !== null ? filterVerified.value : null
       }
@@ -574,8 +595,8 @@ const handleBatchFileChange = (file) => {
 }
 
 const handleBatchImport = async () => {
-  if (!batchForm.value.kb_type) {
-    ElMessage.warning('请选择归属类型')
+  if (!batchForm.value.kb_type || !batchForm.value.doc_id) {
+    ElMessage.warning('请填写必填项（类型和所属文档）')
     return
   }
   if (!batchForm.value.items.length) {
@@ -599,8 +620,8 @@ const handleBatchImport = async () => {
 }
 
 const handleSave = async (continueAdding = false) => {
-  if (!form.value.kb_type || !form.value.content) {
-    ElMessage.warning('请填写必填项')
+  if (!form.value.kb_type || !form.value.content || !form.value.doc_id) {
+    ElMessage.warning('请填写必填项（类型、所属文档和正文）')
     return
   }
   saveLoading.value = true
@@ -765,6 +786,7 @@ watch(() => filterType.value, (newType) => {
 
 onMounted(() => {
   loadTableConfig()
+  loadUserOptions()
   if (props.initialDocId) {
     filterDocId.value = props.initialDocId
   }
@@ -791,5 +813,13 @@ watch(() => props.initialDocId, (newId) => {
   margin-top: 20px;
   display: flex;
   justify-content: flex-end;
+}
+.custom-dialog :deep(.el-dialog__body) {
+  padding-top: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.dialog-form {
+  min-height: 40vh;
 }
 </style>

@@ -8,6 +8,12 @@
             <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
+        <el-form-item label="创建人" v-if="['sysadmin', 'admin'].includes(userRole)">
+          <el-select v-model="filterUploader" placeholder="全部创建人" clearable style="width: 150px;" @change="handleSearch">
+            <el-option label="全部" value="" />
+            <el-option v-for="username in userOptions" :key="username" :label="username" :value="username" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="关键词">
           <el-input v-model="keyword" placeholder="搜索文件名..." clearable @keyup.enter="handleSearch" style="width: 250px;" />
         </el-form-item>
@@ -73,32 +79,32 @@
     <!-- 新增/编辑对话框 -->
     <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑文档' : '新增文档'" width="500px">
       <el-form :model="form" label-width="100px">
-        <el-form-item label="知识库类型">
+        <el-form-item label="知识库类型" required>
           <el-select v-model="form.kb_type" placeholder="请选择类型" style="width: 100%">
             <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="区域范围">
+        <el-form-item label="区域范围" required>
           <el-select v-model="form.region_level" placeholder="请选择区域范围" style="width: 100%" @change="handleRegionLevelChange">
             <el-option label="全国" value="全国" />
             <el-option label="省级" value="省级" />
             <el-option label="市级" value="市级" />
           </el-select>
         </el-form-item>
-        <el-form-item label="省份" v-if="form.region_level === '省级' || form.region_level === '市级'">
+        <el-form-item label="省份" v-if="form.region_level === '省级' || form.region_level === '市级'" required>
           <el-select v-model="form.province" placeholder="请选择省份" style="width: 100%" @change="handleProvinceChange">
             <el-option v-for="item in provinces" :key="item.id" :label="item.name" :value="item.name" />
           </el-select>
         </el-form-item>
-        <el-form-item label="城市" v-if="form.region_level === '市级'">
+        <el-form-item label="城市" v-if="form.region_level === '市级'" required>
           <el-select v-model="form.city" placeholder="请选择城市" style="width: 100%" :disabled="!form.province">
             <el-option v-for="item in cities" :key="item.id" :label="item.name" :value="item.name" />
           </el-select>
         </el-form-item>
-        <el-form-item label="文件名" v-if="isEdit">
+        <el-form-item label="文件名" v-if="isEdit" required>
           <el-input v-model="form.filename" placeholder="请输入文件名" />
         </el-form-item>
-        <el-form-item label="上传文件" v-if="!isEdit">
+        <el-form-item label="上传文件" v-if="!isEdit" required>
           <el-upload
             class="upload-demo"
             action="#"
@@ -206,7 +212,21 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
 const filterKbType = ref('')
+const filterUploader = ref('')
 const keyword = ref('')
+
+const userRole = ref(localStorage.getItem('role'))
+const userOptions = ref([])
+
+const loadUserOptions = async () => {
+  if (!['sysadmin', 'admin'].includes(userRole.value)) return
+  try {
+    const res = await axios.get('/usernames')
+    userOptions.value = res.data
+  } catch (err) {
+    console.error('加载用户列表失败:', err)
+  }
+}
 
 // 新增/编辑相关
 const dialogVisible = ref(false)
@@ -297,6 +317,7 @@ const loadDocuments = async () => {
         page: page.value,
         page_size: pageSize.value,
         kb_type: filterKbType.value || null,
+        uploader: filterUploader.value || null,
         keyword: keyword.value || null 
       }
     })
@@ -540,6 +561,7 @@ const handleDelete = (row) => {
 onMounted(() => {
   loadDocuments()
   loadProvinces()
+  loadUserOptions()
 })
 </script>
 
