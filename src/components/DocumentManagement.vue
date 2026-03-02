@@ -54,12 +54,12 @@
       </el-table-column>
       <el-table-column label="操作" width="350" fixed="right">
         <template #default="{ row }">
-          <el-button type="text" size="small" @click="viewFile(row)">查看文件</el-button>
-          <el-button type="text" size="small" @click="viewClauses(row)">查看条目</el-button>
-          <el-button type="text" size="small" @click="openBatchImportRow(row)">JSON 批量导入</el-button>
-          <el-button type="text" size="small" @click="openMarkdownImportRow(row)">Markdown 导入</el-button>
-          <el-button type="text" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="text" size="small" style="color: #f56c6c" @click="handleDelete(row)">删除</el-button>
+          <el-button link size="small" @click="viewFile(row)">查看文件</el-button>
+          <el-button link size="small" @click="viewClauses(row)">查看条目</el-button>
+          <el-button link size="small" @click="openBatchImportRow(row)">JSON 批量导入</el-button>
+          <el-button link size="small" @click="openMarkdownImportRow(row)">Markdown 导入</el-button>
+          <el-button link size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button link size="small" style="color: #f56c6c" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>

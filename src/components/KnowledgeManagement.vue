@@ -40,7 +40,7 @@
         </el-form-item>
         <el-form-item label="校验状态">
           <el-select v-model="filterVerified" placeholder="全部" clearable style="width: 120px;" @change="handleSearch">
-            <el-option label="全部" :value="null" />
+            <el-option label="全部" value="" />
             <el-option label="已校验" :value="true" />
             <el-option label="未校验" :value="false" />
           </el-select>
@@ -83,7 +83,7 @@
               {{ row.is_verified ? '已校验' : '未校验' }}
             </el-tag>
             <el-button 
-              type="text" 
+              link 
               size="small" 
               style="margin-left: 10px" 
               @click="toggleVerify(row)"
@@ -105,8 +105,8 @@
 
       <el-table-column label="操作" width="150" fixed="right">
         <template #default="{ row }">
-          <el-button type="text" size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button type="text" size="small" style="color: #f56c6c" @click="handleDelete(row)">删除</el-button>
+          <el-button link size="small" @click="openEdit(row)">编辑</el-button>
+          <el-button link size="small" style="color: #f56c6c" @click="handleDelete(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -419,7 +419,7 @@ const loadClauses = async () => {
         doc_id: filterDocId.value || null,
         creator: filterCreator.value || null,
         keyword: keyword.value || null,
-        is_verified: filterVerified.value !== null ? filterVerified.value : null
+        is_verified: (filterVerified.value !== null && filterVerified.value !== '') ? filterVerified.value : null
       }
     })
     clauses.value = res.data.items

@@ -5,8 +5,8 @@
         <h2>城维云智能市政运维专家</h2>
         <div v-if="token">
           <span>欢迎, {{ username }}</span>
-          <el-button type="text" @click="passwordDialogVisible = true">修改密码</el-button>
-          <el-button type="text" @click="logout">退出</el-button>
+          <el-button link @click="passwordDialogVisible = true">修改密码</el-button>
+          <el-button link @click="logout">退出</el-button>
         </div>
       </div>
     </el-header>
@@ -61,6 +61,10 @@
 
           <el-tab-pane label="对比日志" name="comp_logs" v-if="['sysadmin', 'admin'].includes(userRole)">
             <ComparisonLogs v-if="activeTab === 'comp_logs'" :token="token" />
+          </el-tab-pane>
+
+          <el-tab-pane label="扫描文件 OCR" name="ocr" v-if="['sysadmin', 'admin', 'editor'].includes(userRole)">
+            <OcrManagement v-if="activeTab === 'ocr'" :kbTypeOptions="kbTypeOptions" :token="token" />
           </el-tab-pane>
 
           <el-tab-pane label="提示词配置" name="prompts" v-if="userRole === 'sysadmin'">
@@ -120,6 +124,7 @@ import PromptConfig from '../components/PromptConfig.vue'
 import DictManagement from '../components/DictManagement.vue'
 import UserManagement from '../components/UserManagement.vue'
 import SystemConfig from '../components/SystemConfig.vue'
+import OcrManagement from '../components/OcrManagement.vue'
 
 const token = ref(localStorage.getItem('token'))
 const username = ref(localStorage.getItem('username'))
