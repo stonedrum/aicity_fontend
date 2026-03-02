@@ -70,12 +70,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import axios from 'axios'
+import axios from '../api/request'
 import { ElMessage } from 'element-plus'
-import { API_BASE_URL } from '../api/config'
 
 const props = defineProps({
-  authHeaders: Object
+  // No longer needs authHeaders as request.js handles it
 })
 
 const prompts = ref([])
@@ -94,9 +93,7 @@ const promptForm = ref({
 const loadPrompts = async () => {
   promptsLoading.value = true
   try {
-    const res = await axios.get(`${API_BASE_URL}/prompts`, {
-      headers: props.authHeaders
-    })
+    const res = await axios.get('/prompts')
     prompts.value = res.data
   } catch (err) {
     ElMessage.error('加载提示词失败')
@@ -125,13 +122,9 @@ const savePrompt = async () => {
   saveLoading.value = true
   try {
     if (isEditingPrompt.value) {
-      await axios.put(`${API_BASE_URL}/prompts/${promptForm.value.id}`, promptForm.value, {
-        headers: props.authHeaders
-      })
+      await axios.put(`/prompts/${promptForm.value.id}`, promptForm.value)
     } else {
-      await axios.post(`${API_BASE_URL}/prompts`, promptForm.value, {
-        headers: props.authHeaders
-      })
+      await axios.post('/prompts', promptForm.value)
     }
     ElMessage.success('保存成功')
     promptDialogVisible.value = false
@@ -146,9 +139,7 @@ const savePrompt = async () => {
 const handleDeletePrompt = async (row) => {
   if (!confirm(`确定要删除提示词 "${row.name}" 吗？`)) return
   try {
-    await axios.delete(`${API_BASE_URL}/prompts/${row.id}`, {
-      headers: props.authHeaders
-    })
+    await axios.delete(`/prompts/${row.id}`)
     ElMessage.success('删除成功')
     loadPrompts()
   } catch (err) {

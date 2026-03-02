@@ -39,6 +39,10 @@
             <ModelComparison :kbTypeOptions="kbTypeOptions" :token="token" :logout="logout" />
           </el-tab-pane>
 
+          <el-tab-pane label="扫描文件 OCR" name="ocr" v-if="['sysadmin', 'admin', 'editor'].includes(userRole)">
+            <OcrManagement v-if="activeTab === 'ocr'" :kbTypeOptions="kbTypeOptions" :token="token" />
+          </el-tab-pane>
+
           <el-tab-pane label="文档管理" name="documents" v-if="['sysadmin', 'admin', 'editor'].includes(userRole)">
             <DocumentManagement 
               :kbTypeOptions="kbTypeOptions" 
@@ -63,16 +67,12 @@
             <ComparisonLogs v-if="activeTab === 'comp_logs'" :token="token" />
           </el-tab-pane>
 
-          <el-tab-pane label="扫描文件 OCR" name="ocr" v-if="['sysadmin', 'admin', 'editor'].includes(userRole)">
-            <OcrManagement v-if="activeTab === 'ocr'" :kbTypeOptions="kbTypeOptions" :token="token" />
-          </el-tab-pane>
-
           <el-tab-pane label="提示词配置" name="prompts" v-if="userRole === 'sysadmin'">
-            <PromptConfig v-if="activeTab === 'prompts'" :authHeaders="authHeaders" />
+            <PromptConfig v-if="activeTab === 'prompts'" />
           </el-tab-pane>
 
           <el-tab-pane label="字典管理" name="dicts" v-if="userRole === 'sysadmin'">
-            <DictManagement v-if="activeTab === 'dicts'" :authHeaders="authHeaders" :onDictChange="loadKbTypes" />
+            <DictManagement v-if="activeTab === 'dicts'" :onDictChange="loadKbTypes" />
           </el-tab-pane>
 
           <el-tab-pane label="用户管理" name="users" v-if="userRole === 'sysadmin'">
@@ -140,10 +140,6 @@ const passwordForm = ref({
   new_password: '',
   confirm_password: ''
 })
-
-const authHeaders = computed(() => ({
-  Authorization: `Bearer ${token.value}`
-}))
 
 const handleViewClauses = ({ docId }) => {
   selectedDocId.value = docId

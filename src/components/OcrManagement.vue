@@ -18,6 +18,7 @@
     </div>
 
     <el-table v-loading="loading" :data="tasks" border stripe size="small" style="width: 100%">
+      <el-table-column prop="filename" label="文件名" min-width="150" show-overflow-tooltip fixed="left" />
       <el-table-column prop="upload_time" label="上传时间" width="180">
         <template #default="{ row }">
           {{ formatDateTime(row.upload_time) }}
@@ -173,7 +174,7 @@
           <div class="pane-header">原始 PDF 文件</div>
           <iframe 
             v-if="contentRow?.original_file_url" 
-            :src="contentRow.original_file_url" 
+            :src="getPdfViewerUrl(contentRow)" 
             class="pdf-iframe"
           ></iframe>
         </div>
@@ -239,6 +240,10 @@ const markdownText = ref('')
 const renderedMarkdown = computed(() => {
   return md.render(markdownText.value || '*暂无内容*')
 })
+
+const getPdfViewerUrl = (row) => {
+  return row?.original_file_url || ''
+}
 
 const handleViewContent = async (row) => {
   contentRow.value = row
