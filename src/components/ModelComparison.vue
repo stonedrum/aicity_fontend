@@ -80,11 +80,55 @@ import { Loading, Check } from '@element-plus/icons-vue'
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
+import texmath from 'markdown-it-texmath'
+import katex from 'katex'
 import { API_BASE_URL } from '../api/config'
 
+// 自定义更宽松的公式匹配规则，允许公式内容前后有空格
+if (texmath && texmath.rules) {
+  texmath.rules.permissive = {
+    inline: [
+      {   name: 'math_inline_double',
+          rex: /\${2}([^$]*?[^\\])\${2}/gy,
+          tmpl: '<section><eqn>$1</eqn></section>',
+          tag: '$$',
+          displayMode: true,
+          pre: texmath.$_pre,
+          post: texmath.$_post
+      },
+      {   name: 'math_inline',
+          rex: /\$((?:[^\$]|\\\$)+)\$/gy,
+          tmpl: '<eq>$1</eq>',
+          tag: '$',
+          outerSpace: false,
+          pre: texmath.$_pre,
+          post: texmath.$_post
+      }
+    ],
+    block: [
+      {   name: 'math_block_eqno',
+          rex: /\${2}([^$]*?[^\\])\${2}\s*?\(([^)\s]+?)\)/gmy,
+          tmpl: '<section class="eqno"><eqn>$1</eqn><span>($2)</span></section>',
+          tag: '$$'
+      },
+      {   name: 'math_block',
+          rex: /\${2}([^$]*?[^\\])\${2}/gmy,
+          tmpl: '<section><eqn>$1</eqn></section>',
+          tag: '$$'
+      }
+    ]
+  }
+}
+
 const md = new MarkdownIt({
+  html: true,
   linkify: true,
-  breaks: true
+  breaks: true,
+  typographer: true
+}).use(texmath, {
+  engine: katex,
+  delimiters: ['permissive', 'brackets'],
+  katexOptions: { macros: { "\\RR": "\\mathbb{R}" }, throwOnError: false }
 })
 
 const renderMarkdown = (content) => md.render(content)

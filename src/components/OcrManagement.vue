@@ -2,13 +2,22 @@
   <div class="ocr-management">
     <div class="toolbar">
       <el-form :inline="true" size="small">
-        <el-form-item label="状态">
+        <el-form-item label="OCR 状态">
           <el-select v-model="filterStatus" placeholder="全部状态" clearable style="width: 120px;" @change="handleSearch">
             <el-option label="待提交" value="待提交" />
             <el-option label="待识别" value="待识别" />
             <el-option label="已识别" value="已识别" />
             <el-option label="识别失败" value="识别失败" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="RAG 提交状态">
+          <el-select v-model="filterRagStatus" placeholder="全部" clearable style="width: 120px;" @change="handleSearch">
+            <el-option label="未提交" value="未提交" />
+            <el-option label="已提交" value="已提交" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="上传人" v-if="['sysadmin', 'admin'].includes(userRole)">
+          <el-input v-model="filterUploader" placeholder="输入用户名" clearable style="width: 150px;" @change="handleSearch" />
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleSearch">查询</el-button>
@@ -199,11 +208,54 @@ import rawAxios from 'axios'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import MarkdownIt from 'markdown-it'
+import texmath from 'markdown-it-texmath'
+import katex from 'katex'
+
+// 自定义更宽松的公式匹配规则，允许公式内容前后有空格
+if (texmath && texmath.rules) {
+  texmath.rules.permissive = {
+    inline: [
+      {   name: 'math_inline_double',
+          rex: /\${2}([^$]*?[^\\])\${2}/gy,
+          tmpl: '<section><eqn>$1</eqn></section>',
+          tag: '$$',
+          displayMode: true,
+          pre: texmath.$_pre,
+          post: texmath.$_post
+      },
+      {   name: 'math_inline',
+          rex: /\$((?:[^\$]|\\\$)+)\$/gy,
+          tmpl: '<eq>$1</eq>',
+          tag: '$',
+          outerSpace: false,
+          pre: texmath.$_pre,
+          post: texmath.$_post
+      }
+    ],
+    block: [
+      {   name: 'math_block_eqno',
+          rex: /\${2}([^$]*?[^\\])\${2}\s*?\(([^)\s]+?)\)/gmy,
+          tmpl: '<section class="eqno"><eqn>$1</eqn><span>($2)</span></section>',
+          tag: '$$'
+      },
+      {   name: 'math_block',
+          rex: /\${2}([^$]*?[^\\])\${2}/gmy,
+          tmpl: '<section><eqn>$1</eqn></section>',
+          tag: '$$'
+      }
+    ]
+  }
+}
 
 const md = new MarkdownIt({
   html: true,
   linkify: true,
+  breaks: true,
   typographer: true
+}).use(texmath, {
+  engine: katex,
+  delimiters: ['permissive', 'brackets'],
+  katexOptions: { macros: { "\\RR": "\\mathbb{R}" }, throwOnError: false }
 })
 
 const props = defineProps({
@@ -217,6 +269,9 @@ const total = ref(0)
 const page = ref(1)
 const pageSize = ref(15)
 const filterStatus = ref('')
+const filterRagStatus = ref('')
+const filterUploader = ref('')
+const userRole = ref(localStorage.getItem('role') || 'user')
 
 const uploadDialogVisible = ref(false)
 const uploadLoading = ref(false)
@@ -343,7 +398,9 @@ const loadTasks = async () => {
       params: {
         page: page.value,
         page_size: pageSize.value,
-        ocr_status: filterStatus.value || null
+        ocr_status: filterStatus.value || null,
+        rag_status: filterRagStatus.value || null,
+        uploader: filterUploader.value || null
       }
     })
     tasks.value = res.data.items

@@ -366,9 +366,57 @@
 import { ref, onMounted, nextTick, watch } from 'vue'
 import axios from '../api/request'
 import MarkdownIt from 'markdown-it'
+import texmath from 'markdown-it-texmath'
+import katex from 'katex'
 import { API_BASE_URL } from '../api/config'
 
-const md = new MarkdownIt({ linkify: true, breaks: true })
+// 自定义更宽松的公式匹配规则，允许公式内容前后有空格
+if (texmath && texmath.rules) {
+  texmath.rules.permissive = {
+    inline: [
+      {   name: 'math_inline_double',
+          rex: /\${2}([^$]*?[^\\])\${2}/gy,
+          tmpl: '<section><eqn>$1</eqn></section>',
+          tag: '$$',
+          displayMode: true,
+          pre: texmath.$_pre,
+          post: texmath.$_post
+      },
+      {   name: 'math_inline',
+          rex: /\$((?:[^\$]|\\\$)+)\$/gy,
+          tmpl: '<eq>$1</eq>',
+          tag: '$',
+          outerSpace: false,
+          pre: texmath.$_pre,
+          post: texmath.$_post
+      }
+    ],
+    block: [
+      {   name: 'math_block_eqno',
+          rex: /\${2}([^$]*?[^\\])\${2}\s*?\(([^)\s]+?)\)/gmy,
+          tmpl: '<section class="eqno"><eqn>$1</eqn><span>($2)</span></section>',
+          tag: '$$'
+      },
+      {   name: 'math_block',
+          rex: /\${2}([^$]*?[^\\])\${2}/gmy,
+          tmpl: '<section><eqn>$1</eqn></section>',
+          tag: '$$'
+      }
+    ]
+  }
+}
+
+const md = new MarkdownIt({
+  html: true,
+  linkify: true,
+  breaks: true,
+  typographer: true
+}).use(texmath, {
+  engine: katex,
+  delimiters: ['permissive', 'brackets'],
+  katexOptions: { macros: { "\\RR": "\\mathbb{R}" }, throwOnError: false }
+})
+
 const renderMarkdown = (content) => md.render(content || '')
 
 const isDarkMode = ref(localStorage.getItem('chat_theme') !== 'light')
@@ -382,7 +430,7 @@ const chatInput = ref('')
 const chatHistory = ref([
   { 
     role: 'assistant', 
-    content: '您好，我是城维云市政道桥运维智能专家，已接入城市基础设施运维大模型。请问有什么可以帮您？',
+    content: '您好，我是城维云市政道桥运维智能专家，已接入城市基础设施运维大模型。例如，正截面抗弯承载力计算公式为 $M \leqslant f_{sd} A_s (h_0 - 0.5x)$。请问有什么可以帮您？',
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 ])
@@ -658,6 +706,15 @@ onMounted(() => {
 .markdown-body {
   word-wrap: break-word;
   line-height: 1.6;
+}
+.markdown-body .katex {
+  font-size: 1.1em;
+}
+.markdown-body .katex-display {
+  margin: 1.2em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  text-align: center;
 }
 .markdown-body p {
   margin-bottom: 1rem;
