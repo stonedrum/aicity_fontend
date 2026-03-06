@@ -4,7 +4,7 @@ import { API_BASE_URL } from './config'
 // 创建一个 axios 实例，设置 baseURL 为配置的 API 地址
 const instance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 30000
+  timeout: 120000
 })
 
 // 请求拦截器：自动注入 Token

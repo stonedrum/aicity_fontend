@@ -56,7 +56,7 @@
         <template #default="{ row }">
           <el-button link size="small" @click="viewFile(row)">查看文件</el-button>
           <el-button link size="small" @click="viewClauses(row)">查看条目</el-button>
-          <el-button link size="small" @click="openBatchImportRow(row)">JSON 批量导入</el-button>
+          <!-- <el-button link size="small" @click="openBatchImportRow(row)">JSON 批量导入</el-button> -->
           <el-button link size="small" @click="openMarkdownImportRow(row)">Markdown 导入</el-button>
           <el-button link size="small" @click="openEdit(row)">编辑</el-button>
           <el-button link size="small" style="color: #f56c6c" @click="handleDelete(row)">删除</el-button>
@@ -129,37 +129,11 @@
       </template>
     </el-dialog>
 
-    <!-- 批量导入对话框 -->
+    <!-- 批量导入对话框
     <el-dialog v-model="batchDialogVisible" title="JSON 批量导入条款" width="600px">
-      <el-form :model="batchForm" label-width="100px">
-        <el-form-item label="归属类型">
-          <el-select v-model="batchForm.kb_type" placeholder="请选择类型" style="width: 100%" disabled>
-            <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="所属文档">
-          <el-input :value="batchDocName" readonly style="width: 100%" />
-        </el-form-item>
-        <el-form-item label="导入文件">
-          <el-upload
-            :auto-upload="false"
-            accept=".json,application/json"
-            :limit="1"
-            :on-change="handleBatchFileChange"
-            :show-file-list="true"
-          >
-            <el-button type="primary">选择 JSON 文件</el-button>
-          </el-upload>
-        </el-form-item>
-        <el-form-item label="解析结果">
-          <el-input v-model="batchSummary" type="textarea" :rows="4" readonly />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="batchDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="batchLoading" @click="handleBatchImport">开始导入</el-button>
-      </template>
+      ... (hidden code) ...
     </el-dialog>
+    -->
 
     <!-- Markdown 导入对话框 -->
     <el-dialog v-model="mdDialogVisible" title="Markdown 导入条款" width="500px">

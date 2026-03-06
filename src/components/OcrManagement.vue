@@ -114,6 +114,7 @@
     <!-- 上传对话框 -->
     <el-dialog v-model="uploadDialogVisible" title="上传扫描件 (仅限 PDF)" width="450px" :close-on-click-modal="false">
       <el-upload
+        ref="uploadRef"
         class="ocr-upload"
         drag
         action="#"
@@ -276,6 +277,7 @@ const userRole = ref(localStorage.getItem('role') || 'user')
 const uploadDialogVisible = ref(false)
 const uploadLoading = ref(false)
 const selectedFile = ref(null)
+const uploadRef = ref(null)
 
 const ragDialogVisible = ref(false)
 const ragLoading = ref(false)
@@ -429,6 +431,7 @@ const handlePageChange = (val) => {
 
 const openUploadDialog = () => {
   selectedFile.value = null
+  uploadRef.value?.clearFiles()
   uploadDialogVisible.value = true
 }
 

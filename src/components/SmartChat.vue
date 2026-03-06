@@ -99,6 +99,7 @@ import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import texmath from 'markdown-it-texmath'
 import katex from 'katex'
+import { API_BASE_URL } from '../api/config'
 
 // 自定义更宽松的公式匹配规则，允许公式内容前后有空格
 if (texmath && texmath.rules) {

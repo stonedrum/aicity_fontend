@@ -20,9 +20,9 @@
               <el-option label="模型 B (DeepSeek)" value="deepseek" />
             </el-select>
             <el-input-number 
-              v-else-if="['initial_rag_count', 'rerank_count'].includes(row.config_key)"
+              v-else-if="['initial_rag_count', 'rerank_count', 'ocr_trunk_size', 'doc_trunk_size'].includes(row.config_key)"
               v-model="editForm.config_value"
-              :min="1" :max="100"
+              :min="1" :max="2000"
               size="small"
               style="width: 100%"
             />
@@ -45,8 +45,8 @@
             <template v-if="row.config_key === 'system_default_model'">
               {{ row.config_value === 'qwen' ? '模型 A (阿里千问)' : '模型 B (DeepSeek)' }}
             </template>
-            <template v-else-if="['initial_rag_count', 'rerank_count'].includes(row.config_key)">
-              {{ row.config_value }} (条)
+            <template v-else-if="['initial_rag_count', 'rerank_count', 'ocr_trunk_size', 'doc_trunk_size'].includes(row.config_key)">
+              {{ row.config_value }} ({{ row.config_key.includes('count') ? '条' : '字' }})
             </template>
             <template v-else-if="['initial_rag_threshold', 'rerank_threshold'].includes(row.config_key)">
               {{ row.config_value }}
@@ -106,7 +106,7 @@ const startEdit = (row) => {
   editingKey.value = row.config_key
   const val = row.config_value
   // 如果是数字类型的配置，转为数字供 el-input-number 使用
-  if (['initial_rag_count', 'rerank_count'].includes(row.config_key)) {
+  if (['initial_rag_count', 'rerank_count', 'ocr_trunk_size', 'doc_trunk_size'].includes(row.config_key)) {
     editForm.value.config_value = parseInt(val) || 0
   } else if (['initial_rag_threshold', 'rerank_threshold'].includes(row.config_key)) {
     editForm.value.config_value = parseFloat(val) || 0
