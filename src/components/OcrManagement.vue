@@ -170,28 +170,18 @@
       </template>
     </el-dialog>
 
-    <!-- 查看识别内容全屏对话框 -->
+    <!-- 查看识别内容对话框 -->
     <el-dialog
       v-model="contentDialogVisible"
       :title="`查看识别内容 - ${contentRow?.filename || '文件'}`"
-      fullscreen
+      width="80%"
+      top="5vh"
       destroy-on-close
       class="content-viewer-dialog"
     >
       <div v-loading="contentLoading" class="content-viewer-layout">
-        <!-- 左侧 PDF -->
-        <div class="pdf-pane">
-          <div class="pane-header">原始 PDF 文件</div>
-          <iframe 
-            v-if="contentRow?.original_file_url" 
-            :src="getPdfViewerUrl(contentRow)" 
-            class="pdf-iframe"
-          ></iframe>
-        </div>
-        
-        <!-- 右侧 Markdown -->
+        <!-- 仅显示 Markdown -->
         <div class="md-pane">
-          <div class="pane-header">识别后的 Markdown 内容</div>
           <div class="md-content-container markdown-body" v-html="renderedMarkdown"></div>
         </div>
       </div>
@@ -297,10 +287,6 @@ const markdownText = ref('')
 const renderedMarkdown = computed(() => {
   return md.render(markdownText.value || '*暂无内容*')
 })
-
-const getPdfViewerUrl = (row) => {
-  return row?.original_file_url || ''
-}
 
 const handleViewContent = async (row) => {
   contentRow.value = row
@@ -542,15 +528,14 @@ onMounted(() => {
 
 /* 对话框整体高度调整 */
 .content-viewer-dialog :deep(.el-dialog) {
-  margin: 0 !important;
+  margin-top: 5vh !important;
   display: flex;
   flex-direction: column;
-  height: 100vh !important;
-  width: 100vw !important;
+  height: 85vh !important;
 }
 
 .content-viewer-dialog :deep(.el-dialog__header) {
-  padding: 12px 20px;
+  padding: 15px 20px;
   margin: 0;
   border-bottom: 1px solid #ddd;
 }
@@ -570,15 +555,15 @@ onMounted(() => {
 
 .content-viewer-layout {
   flex: 1;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   width: 100%;
   height: 100%;
   overflow: hidden;
   min-height: 0;
 }
 
-.pdf-pane, .md-pane {
+.md-pane {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -587,38 +572,12 @@ onMounted(() => {
   min-height: 0;
 }
 
-.pdf-pane {
-  border-right: 1px solid #ddd;
-}
-
-.md-pane {
-  border-right: none;
-}
-
-.pane-header {
-  height: 40px;
-  line-height: 40px;
-  padding: 0 16px;
-  background-color: #f5f7fa;
-  font-weight: bold;
-  border-bottom: 1px solid #ddd;
-  color: #333;
-  box-sizing: border-box;
-}
-
-.pdf-iframe {
-  height: calc(100% - 40px);
-  width: 100%;
-  border: none;
-  display: block;
-}
-
 .md-content-container {
-  height: calc(100% - 40px);
-  padding: 24px;
+  flex: 1;
+  padding: 30px 40px;
   overflow-y: auto;
   background-color: #fff;
-  line-height: 1.6;
+  line-height: 1.8;
   box-sizing: border-box;
 }
 
