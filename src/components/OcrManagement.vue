@@ -28,6 +28,12 @@
 
     <el-table v-loading="loading" :data="tasks" border stripe size="small" style="width: 100%">
       <el-table-column prop="filename" label="文件名" min-width="150" show-overflow-tooltip fixed="left" />
+      <el-table-column prop="kb_type" label="文件类型" width="120">
+        <template #default="{ row }">
+          <el-tag v-if="row.kb_type" size="small" effect="plain">{{ row.kb_type }}</el-tag>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
       <el-table-column prop="upload_time" label="上传时间" width="180">
         <template #default="{ row }">
           {{ formatDateTime(row.upload_time) }}
@@ -74,7 +80,7 @@
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="240" fixed="right">
+      <el-table-column label="操作" width="280" fixed="right">
         <template #default="{ row }">
           <el-button 
             link 
@@ -85,6 +91,16 @@
             @click="handleCheckTask(row)"
           >
             {{ row.ocr_status === '待提交' ? '提交识别' : '检查进度' }}
+          </el-button>
+          <el-button 
+            v-if="row.ocr_status === '识别失败'"
+            link 
+            size="small" 
+            type="warning"
+            :loading="row.resubmitting"
+            @click="handleResubmitOcr(row)"
+          >
+            重新识别
           </el-button>
           <el-button 
             link 
@@ -113,6 +129,25 @@
 
     <!-- 上传对话框 -->
     <el-dialog v-model="uploadDialogVisible" title="上传扫描件 (仅限 PDF)" width="450px" :close-on-click-modal="false">
+      <el-form :model="uploadForm" label-width="80px" style="margin-bottom: 20px;">
+        <el-form-item label="文件类型">
+          <el-select
+            v-model="uploadForm.kb_type"
+            placeholder="选择或输入类型 (可选)"
+            filterable
+            allow-create
+            default-first-option
+            style="width: 100%"
+          >
+            <el-option
+              v-for="item in kbTypeOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value"
+            />
+          </el-select>
+        </el-form-item>
+      </el-form>
       <el-upload
         ref="uploadRef"
         class="ocr-upload"
@@ -268,6 +303,9 @@ const uploadDialogVisible = ref(false)
 const uploadLoading = ref(false)
 const selectedFile = ref(null)
 const uploadRef = ref(null)
+const uploadForm = ref({
+  kb_type: ''
+})
 
 const ragDialogVisible = ref(false)
 const ragLoading = ref(false)
@@ -379,6 +417,19 @@ const handleCheckTask = async (row) => {
   }
 }
 
+const handleResubmitOcr = async (row) => {
+  row.resubmitting = true
+  try {
+    const res = await axios.post(`/ocr/tasks/${row.id}/resubmit_ocr`)
+    ElMessage.success('已重新提交 OCR 识别，请稍后查看进度')
+    Object.assign(row, res.data)
+  } catch (err) {
+    ElMessage.error('重新识别失败: ' + (err.response?.data?.detail || err.message))
+  } finally {
+    row.resubmitting = false
+  }
+}
+
 const loadTasks = async () => {
   loading.value = true
   try {
@@ -418,6 +469,7 @@ const handlePageChange = (val) => {
 const openUploadDialog = () => {
   selectedFile.value = null
   uploadRef.value?.clearFiles()
+  uploadForm.value.kb_type = ''
   uploadDialogVisible.value = true
 }
 
@@ -437,6 +489,9 @@ const handleUpload = async () => {
   uploadLoading.value = true
   const formData = new FormData()
   formData.append('file', selectedFile.value)
+  if (uploadForm.value.kb_type) {
+    formData.append('kb_type', uploadForm.value.kb_type)
+  }
   try {
     await axios.post('/ocr/upload', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
@@ -454,7 +509,7 @@ const handleUpload = async () => {
 const openSubmitRagDialog = (row) => {
   selectedTask.value = row
   ragForm.value = {
-    kb_type: props.kbTypeOptions[0]?.value || '',
+    kb_type: row.kb_type || props.kbTypeOptions[0]?.value || '',
     region_level: '全国',
     province: '',
     city: ''
