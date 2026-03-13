@@ -593,6 +593,11 @@ const handleChat = async () => {
   chatLoading.value = true
 
   try {
+    const withoutLast = chatHistory.value.slice(0, -1)
+    const lastN = withoutLast.slice(-10)
+    // 调试：输出发送给后端的历史问答记录
+    console.log('[Chat] 发送历史记录条数:', lastN.length, '当前消息:', userMsg?.slice(0, 50) + (userMsg?.length > 50 ? '...' : ''))
+    console.log('[Chat] 历史记录 content:', lastN.map((m, i) => `${i + 1}. [${m.role}] ${(m.content || '').slice(0, 80)}${(m.content || '').length > 80 ? '...' : ''}`))
     const response = await fetch(`${API_BASE_URL}/chat`, {
       method: 'POST',
       headers: {
@@ -601,6 +606,7 @@ const handleChat = async () => {
       },
       body: JSON.stringify({
         message: userMsg,
+        history: lastN,
         stream: true,
         kb_type: chatKbType.value || null
       })

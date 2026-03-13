@@ -16,6 +16,11 @@
             <el-option label="已提交" value="已提交" />
           </el-select>
         </el-form-item>
+        <el-form-item label="文件类型">
+          <el-select v-model="filterKbType" placeholder="全部类型" clearable style="width: 150px;" @change="handleSearch">
+            <el-option v-for="item in kbTypeOptions" :key="item.value" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="上传人" v-if="['sysadmin', 'admin'].includes(userRole)">
           <el-input v-model="filterUploader" placeholder="输入用户名" clearable style="width: 150px;" @change="handleSearch" />
         </el-form-item>
@@ -30,7 +35,9 @@
       <el-table-column prop="filename" label="文件名" min-width="150" show-overflow-tooltip fixed="left" />
       <el-table-column prop="kb_type" label="文件类型" width="120">
         <template #default="{ row }">
-          <el-tag v-if="row.kb_type" size="small" effect="plain">{{ row.kb_type }}</el-tag>
+          <el-tag v-if="row.kb_type" size="small" effect="plain">
+            {{ getKbTypeLabel(row.kb_type) }}
+          </el-tag>
           <span v-else>-</span>
         </template>
       </el-table-column>
@@ -296,6 +303,7 @@ const page = ref(1)
 const pageSize = ref(15)
 const filterStatus = ref('')
 const filterRagStatus = ref('')
+const filterKbType = ref('')
 const filterUploader = ref('')
 const userRole = ref(localStorage.getItem('role') || 'user')
 
@@ -403,6 +411,12 @@ const getStatusTag = (status) => {
   }
 }
 
+const getKbTypeLabel = (val) => {
+  if (!val) return '-'
+  const option = props.kbTypeOptions?.find(opt => opt.value === val)
+  return option ? option.label : val
+}
+
 const handleCheckTask = async (row) => {
   row.checking = true
   try {
@@ -439,6 +453,7 @@ const loadTasks = async () => {
         page_size: pageSize.value,
         ocr_status: filterStatus.value || null,
         rag_status: filterRagStatus.value || null,
+        kb_type: filterKbType.value || null,
         uploader: filterUploader.value || null
       }
     })

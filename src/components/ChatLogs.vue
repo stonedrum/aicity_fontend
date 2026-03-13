@@ -62,6 +62,30 @@
           </el-descriptions-item>
         </el-descriptions>
 
+        <el-divider>RAG 拼接查询过程</el-divider>
+        <div v-if="selectedLog.rag_query_steps && selectedLog.rag_query_steps.length > 0" class="rag-query-steps">
+          <el-timeline>
+            <el-timeline-item
+              v-for="s in selectedLog.rag_query_steps"
+              :key="s.step"
+              :type="s.had_rerank_results ? 'success' : 'primary'"
+              :hollow="!s.had_rerank_results"
+            >
+              <div class="step-item">
+                <div class="step-title">
+                  第 {{ s.step }} 次尝试
+                  <span v-if="s.history_count === 0">（仅当前问句）</span>
+                  <span v-else>（当前问句 + {{ s.history_count }} 条历史）</span>
+                  <el-tag v-if="s.had_rerank_results" type="success" size="small" class="step-tag">命中重排结果</el-tag>
+                  <el-tag v-else type="info" size="small" class="step-tag">无重排结果</el-tag>
+                </div>
+                <pre class="step-query">{{ s.query_used }}</pre>
+              </div>
+            </el-timeline-item>
+          </el-timeline>
+        </div>
+        <div v-else class="no-data">无拼接过程记录（可能为旧数据或未走多轮 RAG）</div>
+
         <el-divider>意图识别信息</el-divider>
         <div v-if="selectedLog.intent_info" class="intent-info">
           <el-descriptions :column="1" border size="small">
@@ -370,6 +394,34 @@ onMounted(() => {
   padding: 20px;
   text-align: center;
   color: #999;
+}
+.rag-query-steps {
+  margin: 10px 0;
+  padding: 10px;
+  background-color: #fafafa;
+  border-radius: 4px;
+  border: 1px solid #ebeef5;
+}
+.step-item {
+  margin-bottom: 8px;
+}
+.step-title {
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+.step-tag {
+  margin-left: 8px;
+}
+.step-query {
+  margin: 0;
+  padding: 8px 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
 }
 .llm-response {
   padding: 15px;
